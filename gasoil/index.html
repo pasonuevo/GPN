@@ -282,7 +282,8 @@ function pintar() {
 }
 
 const esDueno = () => !!yo && yo.rol === 'Dueño';
-const puedeAnular = r => esDueno() || (!!yo && r.quien === yo.nombre) || !!r.pendiente;
+// Solo el dueño anula lo que ya está en la hoja; lo que aún no se envió se puede quitar en el mismo teléfono.
+const puedeAnular = r => esDueno() || !!r.pendiente;
 
 function pintarEstado() {
   const e = $('estado');

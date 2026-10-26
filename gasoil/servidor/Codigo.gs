@@ -28,12 +28,12 @@ function doPost(e) {
         ids.add(r.id);
         filas.push([fechaDe(r.fecha), r.tipo, r.maquina || '', Number(r.litros) || 0, r.comentario || '', yo.nombre, '', '', new Date(), r.id]);
       });
-      // Cada uno anula lo suyo; el dueño puede anular cualquier movimiento.
+      // Solo el dueño puede anular movimientos.
       const anular = new Set(datos.anular || []);
       const marca = 'Sí · ' + yo.nombre + ' ' + Utilities.formatDate(new Date(), ZONA, 'dd/MM HH:mm');
       filas.forEach(f => {
         if (!anular.has(String(f[9])) || f[7]) return;
-        if (dueno || f[5] === yo.nombre) f[7] = marca; else rechazados.push(String(f[9]));
+        if (dueno) f[7] = marca; else rechazados.push(String(f[9]));
       });
       ordenarYSaldar(filas);
       if (filas.length) hoja.getRange(2, 1, filas.length, COLS.length).setValues(filas);
