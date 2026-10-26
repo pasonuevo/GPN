@@ -12,7 +12,9 @@ function doPost(e) {
   return responder(() => {
     const datos = JSON.parse(e.postData.contents);
     const libro = SpreadsheetApp.openById(HOJA_ID);
-    revisarClave(libro, datos.k);
+    const yo = usuario(libro, datos.k);
+    const dueno = yo.rol === 'Dueño';
+    const rechazados = [];
     const candado = LockService.getScriptLock();
     candado.waitLock(20000);
     try {
@@ -21,11 +23,18 @@ function doPost(e) {
       const ids = new Set(filas.map(f => String(f[9])));
       (datos.add || []).forEach(r => {
         if (!r.id || ids.has(r.id)) return;
+        // Solo el dueño corrige el nivel del tanque.
+        if (r.tipo === 'Corrección' && !dueno) { rechazados.push(r.id); return; }
         ids.add(r.id);
-        filas.push([fechaDe(r.fecha), r.tipo, r.maquina || '', Number(r.litros) || 0, r.comentario || '', r.quien || '', '', '', new Date(), r.id]);
+        filas.push([fechaDe(r.fecha), r.tipo, r.maquina || '', Number(r.litros) || 0, r.comentario || '', yo.nombre, '', '', new Date(), r.id]);
       });
+      // Cada uno anula lo suyo; el dueño puede anular cualquier movimiento.
       const anular = new Set(datos.anular || []);
-      filas.forEach(f => { if (anular.has(String(f[9])) && !f[7]) f[7] = 'Sí'; });
+      const marca = 'Sí · ' + yo.nombre + ' ' + Utilities.formatDate(new Date(), ZONA, 'dd/MM HH:mm');
+      filas.forEach(f => {
+        if (!anular.has(String(f[9])) || f[7]) return;
+        if (dueno || f[5] === yo.nombre) f[7] = marca; else rechazados.push(String(f[9]));
+      });
       ordenarYSaldar(filas);
       if (filas.length) hoja.getRange(2, 1, filas.length, COLS.length).setValues(filas);
       hoja.getRange(2, 1, Math.max(filas.length, 1), 1).setNumberFormat('dd/MM/yyyy HH:mm');
@@ -33,17 +42,20 @@ function doPost(e) {
     } finally {
       candado.releaseLock();
     }
-    return leer(datos.k);
+    const salida = leer(datos.k);
+    salida.rechazados = rechazados;
+    return salida;
   });
 }
 
 function leer(clave) {
   const libro = SpreadsheetApp.openById(HOJA_ID);
-  revisarClave(libro, clave);
+  const yo = usuario(libro, clave);
   const hoja = libro.getSheetByName('Movimientos');
   const filas = hoja.getLastRow() > 1 ? hoja.getRange(2, 1, hoja.getLastRow() - 1, COLS.length).getValues() : [];
   return {
     ok: true,
+    yo: yo,
     rows: filas.filter(f => f[9]).map(f => ({
       id: String(f[9]),
       fecha: Utilities.formatDate(new Date(f[0]), ZONA, "yyyy-MM-dd'T'HH:mm"),
@@ -67,9 +79,14 @@ function ordenarYSaldar(filas) {
   });
 }
 
-function revisarClave(libro, clave) {
-  const buena = String(libro.getSheetByName('Clave').getRange('B1').getValue()).trim();
-  if (!buena || String(clave).trim() !== buena) throw new Error('clave');
+// Busca la clave en la pestaña Usuarios (Nombre, Clave, Rol, Activo).
+function usuario(libro, clave) {
+  const k = String(clave == null ? '' : clave).trim();
+  const hoja = libro.getSheetByName('Usuarios');
+  const filas = hoja && hoja.getLastRow() > 1 ? hoja.getRange(2, 1, hoja.getLastRow() - 1, 4).getValues() : [];
+  const f = k && filas.find(f => String(f[1]).trim() === k && String(f[0]).trim() && String(f[3]).trim().toLowerCase() !== 'no');
+  if (!f) throw new Error('clave');
+  return { nombre: String(f[0]).trim(), rol: String(f[2]).trim() === 'Dueño' ? 'Dueño' : 'Surtidor' };
 }
 
 function fechaDe(texto) {
@@ -85,5 +102,6 @@ function responder(fn) {
 
 // Correr una vez desde el editor para dar permisos.
 function probar() {
-  Logger.log(leer(SpreadsheetApp.openById(HOJA_ID).getSheetByName('Clave').getRange('B1').getValue()).rows.length + ' movimientos');
+  const usuarios = SpreadsheetApp.openById(HOJA_ID).getSheetByName('Usuarios').getDataRange().getValues();
+  Logger.log(leer(usuarios[1][1]).rows.length + ' movimientos, ' + (usuarios.length - 1) + ' filas en Usuarios');
 }
