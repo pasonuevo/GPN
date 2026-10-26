@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Gasoil Paso Nuevo</title>
-<meta name="theme-color" content="#1F3D32">
+<meta name="theme-color" content="#15395A">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Gasoil">
@@ -13,13 +13,13 @@
 <link rel="icon" href="icon-192.png">
 <style>
 :root{
-  --bg:#F3F5F1;--surface:#FFFFFF;--fg:#1E2420;--muted:#5F635C;--line:#D5DBD3;
-  --verde:#1F3D32;--oro:#D8B157;--cuero:#96643A;--tint:#E4EBE5;--warn:#A2482B;--ok:#2F6B4A;
+  --bg:#F2F5F8;--surface:#FFFFFF;--fg:#1E2420;--muted:#5F635C;--line:#D5DBD3;
+  --verde:#15395A;--oro:#F2A33A;--cuero:#D9862B;--tint:#E3EBF2;--warn:#A2482B;--ok:#2F6B4A;
   --sans:-apple-system,"Helvetica Neue",Arial,sans-serif;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#121614;--surface:#1A201C;--fg:#E6EAE5;--muted:#A3AAA2;--line:#2E3631;
-  --tint:#22302A;--warn:#E58A68;--ok:#7FC39B;--cuero:#D6A06C;
+  --tint:#1F2B36;--warn:#E58A68;--ok:#7FC39B;--cuero:#F2A33A;
 }}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);-webkit-text-size-adjust:100%}
@@ -42,7 +42,7 @@ main{max-width:640px;margin:0 auto;padding:16px 16px calc(env(safe-area-inset-bo
 .btn{border:0;border-radius:12px;padding:16px 12px;font-size:17px;font-weight:600;background:var(--tint);color:var(--fg)}
 .acciones:has(#btnCorregir[hidden]) .btn[data-tipo="Entrada"]{grid-column:1/-1}
 .btn.prin{grid-column:1/-1;background:var(--verde);color:#F4EEE0;font-size:19px;padding:20px}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .btn.prin{background:#2E5A49}}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .btn.prin{background:#2B5679}}
 .btn:active{opacity:.75}
 h2{font-size:15px;margin:0 0 10px;display:flex;justify-content:space-between;align-items:center}
 .seg{display:inline-flex;background:var(--tint);border-radius:9px;padding:2px}
@@ -79,7 +79,7 @@ textarea{min-height:70px;resize:vertical}
 .maquinas{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .maquinas button{border:2px solid var(--line);background:var(--bg);border-radius:12px;padding:14px 8px;font-size:17px;font-weight:600}
 .maquinas button.on{border-color:var(--verde);background:var(--tint)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .maquinas button.on{border-color:#8FC4A8}}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .maquinas button.on{border-color:#8FB8DC}}
 .fila{display:flex;gap:10px;margin-top:20px}
 .fila .btn{flex:1}
 .aviso{font-size:14px;color:var(--warn);margin-top:8px;min-height:1em}
