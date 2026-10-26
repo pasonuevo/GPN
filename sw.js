@@ -1,6 +1,6 @@
 // Guarda la app completa en el teléfono para que abra sin internet.
 // Al actualizar los datos, cambiar VERSION para que el teléfono baje la copia nueva.
-const VERSION = 'rebano-2026-10-24';
+const VERSION = 'rebano-2026-10-24-logo';
 const FILES = ['./', './index.html', './manifest.json', './apple-touch-icon.png', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
