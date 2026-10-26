@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Gasoil Paso Nuevo</title>
+<meta name="theme-color" content="#1F3D32">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Gasoil">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<style>
+:root{
+  --bg:#F3F5F1;--surface:#FFFFFF;--fg:#1E2420;--muted:#5F635C;--line:#D5DBD3;
+  --verde:#1F3D32;--oro:#D8B157;--cuero:#96643A;--tint:#E4EBE5;--warn:#A2482B;--ok:#2F6B4A;
+  --sans:-apple-system,"Helvetica Neue",Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121614;--surface:#1A201C;--fg:#E6EAE5;--muted:#A3AAA2;--line:#2E3631;
+  --tint:#22302A;--warn:#E58A68;--ok:#7FC39B;--cuero:#D6A06C;
+}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);-webkit-text-size-adjust:100%}
+button,input,textarea{font:inherit;color:inherit}
+header{background:var(--verde);color:#F4EEE0;padding:calc(env(safe-area-inset-top) + 12px) 16px 12px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:5}
+header h1{margin:0;font-size:19px;font-weight:600;letter-spacing:.02em;flex:1}
+header h1 small{display:block;font-size:11px;letter-spacing:.18em;color:var(--oro);font-weight:500}
+.estado{font-size:12px;padding:5px 9px;border-radius:99px;background:rgba(255,255,255,.12);white-space:nowrap;border:0;color:inherit}
+.estado.mal{background:#A2482B}
+.icono{background:none;border:0;color:inherit;font-size:22px;padding:4px 6px;line-height:1}
+main{max-width:640px;margin:0 auto;padding:16px 16px calc(env(safe-area-inset-bottom) + 32px)}
+.tarjeta{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.saldo{text-align:center}
+.saldo .et{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.saldo .num{font-size:52px;font-weight:700;line-height:1.1;margin:4px 0;font-variant-numeric:tabular-nums}
+.saldo .num span{font-size:22px;font-weight:500;color:var(--muted)}
+.saldo .num.bajo{color:var(--warn)}
+.saldo .sub{font-size:14px;color:var(--muted)}
+.acciones{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.btn{border:0;border-radius:12px;padding:16px 12px;font-size:17px;font-weight:600;background:var(--tint);color:var(--fg)}
+.btn.prin{grid-column:1/-1;background:var(--verde);color:#F4EEE0;font-size:19px;padding:20px}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .btn.prin{background:#2E5A49}}
+.btn:active{opacity:.75}
+h2{font-size:15px;margin:0 0 10px;display:flex;justify-content:space-between;align-items:center}
+.seg{display:inline-flex;background:var(--tint);border-radius:9px;padding:2px}
+.seg button{border:0;background:none;padding:5px 10px;border-radius:7px;font-size:13px;color:var(--muted)}
+.seg button.on{background:var(--surface);color:var(--fg);font-weight:600}
+.maq{display:grid;grid-template-columns:90px 1fr auto;gap:10px;align-items:center;padding:7px 0;font-size:15px}
+.maq .barra{height:10px;background:var(--tint);border-radius:5px;overflow:hidden}
+.maq .barra i{display:block;height:100%;background:var(--cuero);border-radius:5px}
+.maq b{font-variant-numeric:tabular-nums;text-align:right;min-width:70px}
+.maq small{color:var(--muted);font-weight:400}
+.total{border-top:1px solid var(--line);margin-top:6px;padding-top:8px;display:flex;justify-content:space-between;font-weight:600}
+.dia{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 4px}
+.dia:first-child{margin-top:0}
+.mov{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);align-items:flex-start;width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left}
+.mov .hora{font-size:13px;color:var(--muted);width:44px;flex:none;padding-top:2px}
+.mov .que{flex:1;min-width:0}
+.mov .que div{font-weight:600}
+.mov .que p{margin:2px 0 0;font-size:14px;color:var(--muted);overflow-wrap:anywhere}
+.mov .lts{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.mov .lts.mas{color:var(--ok)}
+.mov.anulado{opacity:.45}.mov.anulado .lts,.mov.anulado .que div{text-decoration:line-through}
+.chip{display:inline-block;font-size:11px;font-weight:600;padding:1px 6px;border-radius:5px;background:var(--tint);color:var(--muted);margin-left:6px;vertical-align:1px}
+.chip.pend{background:#F2E3C4;color:#7A5418}
+.vacio{color:var(--muted);text-align:center;padding:12px 0;font-size:15px}
+.mas-btn{width:100%;margin-top:10px;background:none;border:1px solid var(--line);border-radius:10px;padding:10px;color:var(--muted)}
+dialog{border:0;padding:0;width:100%;max-width:640px;margin:auto auto 0;border-radius:18px 18px 0 0;background:var(--surface);color:var(--fg);max-height:92vh}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog form{padding:18px 16px calc(env(safe-area-inset-bottom) + 18px)}
+dialog h3{margin:0 0 14px;font-size:20px}
+label{display:block;font-size:14px;color:var(--muted);margin:14px 0 6px}
+input,textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--bg);font-size:17px}
+input.grande{font-size:30px;font-weight:700;text-align:center;font-variant-numeric:tabular-nums}
+textarea{min-height:70px;resize:vertical}
+.maquinas{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.maquinas button{border:2px solid var(--line);background:var(--bg);border-radius:12px;padding:14px 8px;font-size:17px;font-weight:600}
+.maquinas button.on{border-color:var(--verde);background:var(--tint)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .maquinas button.on{border-color:#8FC4A8}}
+.fila{display:flex;gap:10px;margin-top:20px}
+.fila .btn{flex:1}
+.aviso{font-size:14px;color:var(--warn);margin-top:8px;min-height:1em}
+.nota{font-size:13px;color:var(--muted);margin-top:6px;line-height:1.4}
+</style>
+</head>
+<body>
+<header>
+  <h1>Gasoil<small>PASO NUEVO</small></h1>
+  <button class="estado" id="estado" type="button">…</button>
+  <button class="icono" id="ajustes" type="button" aria-label="Ajustes">⚙︎</button>
+</header>
+<main>
+  <section class="tarjeta saldo">
+    <div class="et">En el tanque</div>
+    <div class="num" id="saldo">0 <span>L</span></div>
+    <div class="sub" id="saldoSub"></div>
+  </section>
+
+  <div class="acciones">
+    <button class="btn prin" type="button" data-tipo="Salida">⛽ Tanquear máquina</button>
+    <button class="btn" type="button" data-tipo="Entrada">＋ Entrada</button>
+    <button class="btn" type="button" data-tipo="Corrección">Corregir nivel</button>
+  </div>
+
+  <section class="tarjeta">
+    <h2>Consumo por máquina
+      <span class="seg" id="periodo">
+        <button type="button" data-p="hoy" class="on">Hoy</button><button type="button" data-p="7">7 días</button><button type="button" data-p="mes">Mes</button>
+      </span>
+    </h2>
+    <div id="consumo"></div>
+  </section>
+
+  <section class="tarjeta">
+    <h2>Movimientos</h2>
+    <div id="lista"></div>
+  </section>
+</main>
+
+<dialog id="dlgMov">
+  <form method="dialog" id="fMov">
+    <h3 id="movTitulo"></h3>
+    <div id="bloqueMaq">
+      <label>Máquina</label>
+      <div class="maquinas" id="maquinas"></div>
+    </div>
+    <label for="litros" id="lblLitros">Litros</label>
+    <input id="litros" class="grande" inputmode="decimal" autocomplete="off" placeholder="0">
+    <div class="aviso" id="avisoLitros"></div>
+    <label for="coment" id="lblComent">Comentario</label>
+    <textarea id="coment"></textarea>
+    <label for="fecha">Fecha y hora</label>
+    <input id="fecha" type="datetime-local">
+    <div class="fila">
+      <button class="btn" type="button" id="cancelar">Cancelar</button>
+      <button class="btn prin" type="submit" value="ok" style="grid-column:auto">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlgAnular">
+  <form method="dialog">
+    <h3>¿Anular este movimiento?</h3>
+    <p id="anularTxt" class="nota" style="font-size:16px"></p>
+    <p class="nota">Queda tachado en la lista y en la hoja, y deja de contar en el saldo.</p>
+    <div class="fila">
+      <button class="btn" value="no">No</button>
+      <button class="btn prin" value="si" style="grid-column:auto;background:#A2482B">Anular</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlgAjustes">
+  <form method="dialog" id="fAjustes">
+    <h3>Ajustes de este teléfono</h3>
+    <label for="aNombre">¿Quién anota en este teléfono?</label>
+    <input id="aNombre" autocomplete="name" placeholder="Ej: Encargado San Miguel">
+    <label for="aClave">Clave</label>
+    <input id="aClave" inputmode="numeric" autocomplete="off">
+    <label for="aServidor">Servidor</label>
+    <input id="aServidor" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec" style="font-size:13px">
+    <div class="aviso" id="avisoAjustes"></div>
+    <div class="fila">
+      <button class="btn" type="button" id="cerrarAjustes">Cerrar</button>
+      <button class="btn prin" type="submit" value="ok" style="grid-column:auto">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+// Dirección del servidor (Apps Script de la hoja "Gasoil Paso Nuevo"). Se puede cambiar en Ajustes.
+const SERVIDOR = '';
+const MAQUINAS = ['Landini', 'John Deere', 'Fiat', 'Ford'];
+const NIVEL_BAJO = 200;
+
+const $ = id => document.getElementById(id);
+const fmt = n => (Math.round(n * 10) / 10).toLocaleString('es-VE');
+const cargar = (k, def) => { try { const v = localStorage.getItem('gas.' + k); return v == null ? def : JSON.parse(v); } catch (e) { return def; } };
+const guardar = (k, v) => { try { localStorage.setItem('gas.' + k, JSON.stringify(v)); } catch (e) {} };
+
+let filas = cargar('filas', []);     // copia de lo que tiene la hoja
+let pend = cargar('pend', []);       // anotados aquí y aún no enviados
+let anul = cargar('anul', []);       // ids anulados aquí y aún no enviados
+let conf = cargar('conf', { nombre: '', clave: '', servidor: '' });
+let ultimaSync = cargar('ultimaSync', null);
+let errorSync = '';
+let periodo = 'hoy';
+let mostrar = 40;
+
+const servidor = () => (conf.servidor || SERVIDOR).trim();
+
+function ahoraLocal() {
+  const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 16);
+}
+function nuevoId() {
+  return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+}
+
+// Lista combinada: hoja + pendientes, con anulaciones aplicadas, ordenada por fecha.
+function movimientos() {
+  const enHoja = new Set(filas.map(r => r.id));
+  const todos = filas.concat(pend.filter(r => !enHoja.has(r.id)).map(r => ({ ...r, pendiente: true })));
+  const anulSet = new Set(anul);
+  return todos.map(r => anulSet.has(r.id) ? { ...r, anulado: true } : r)
+    .sort((a, b) => a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0);
+}
+
+function calcular(movs) {
+  let saldo = 0, ultEntrada = null;
+  movs.forEach(r => {
+    if (r.anulado) return;
+    if (r.tipo === 'Entrada') { saldo += r.litros; ultEntrada = r; }
+    else if (r.tipo === 'Salida') saldo -= r.litros;
+    else if (r.tipo === 'Corrección') saldo = r.litros;
+  });
+  return { saldo, ultEntrada };
+}
+
+function fechaCorta(iso) {
+  const [y, m, d] = iso.slice(0, 10).split('-');
+  return d + '/' + m;
+}
+function nombreDia(iso) {
+  const hoy = ahoraLocal().slice(0, 10);
+  const ayer = new Date(Date.now() - 864e5); ayer.setMinutes(ayer.getMinutes() - ayer.getTimezoneOffset());
+  if (iso.slice(0, 10) === hoy) return 'Hoy';
+  if (iso.slice(0, 10) === ayer.toISOString().slice(0, 10)) return 'Ayer';
+  const d = new Date(iso.slice(0, 10) + 'T12:00');
+  return d.toLocaleDateString('es-VE', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+function desde(p) {
+  const hoy = ahoraLocal().slice(0, 10);
+  if (p === 'hoy') return hoy;
+  if (p === 'mes') return hoy.slice(0, 8) + '01';
+  const d = new Date(Date.now() - 6 * 864e5); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 10);
+}
+
+function pintar() {
+  const movs = movimientos();
+  const { saldo, ultEntrada } = calcular(movs);
+  $('saldo').innerHTML = fmt(saldo) + ' <span>L</span>';
+  $('saldo').classList.toggle('bajo', saldo < NIVEL_BAJO);
+  $('saldoSub').textContent = ultEntrada ? 'Última entrada: ' + fmt(ultEntrada.litros) + ' L el ' + fechaCorta(ultEntrada.fecha) : 'Aún no hay entradas anotadas';
+
+  // Consumo por máquina
+  const ini = desde(periodo);
+  const salidas = movs.filter(r => r.tipo === 'Salida' && !r.anulado && r.fecha.slice(0, 10) >= ini);
+  const porMaq = {};
+  MAQUINAS.forEach(m => porMaq[m] = { l: 0, n: 0 });
+  salidas.forEach(r => { const k = r.maquina || 'Otra'; porMaq[k] = porMaq[k] || { l: 0, n: 0 }; porMaq[k].l += r.litros; porMaq[k].n++; });
+  const max = Math.max(1, ...Object.values(porMaq).map(v => v.l));
+  const total = salidas.reduce((s, r) => s + r.litros, 0);
+  $('consumo').innerHTML = Object.entries(porMaq).map(([m, v]) =>
+    `<div class="maq"><span>${esc(m)}</span><div class="barra"><i style="width:${v.l / max * 100}%"></i></div><b>${fmt(v.l)} L <small>${v.n ? '· ' + v.n + '×' : ''}</small></b></div>`
+  ).join('') + `<div class="total"><span>Total</span><span>${fmt(total)} L</span></div>`;
+
+  // Lista de movimientos, lo más nuevo arriba
+  const rec = movs.slice().reverse();
+  if (!rec.length) { $('lista').innerHTML = '<div class="vacio">Todavía no hay movimientos.<br>Empiece con una entrada o corrigiendo el nivel.</div>'; return; }
+  let html = '', diaAnt = '';
+  rec.slice(0, mostrar).forEach(r => {
+    const dia = r.fecha.slice(0, 10);
+    if (dia !== diaAnt) { html += `<div class="dia">${esc(nombreDia(r.fecha))}</div>`; diaAnt = dia; }
+    const titulo = r.tipo === 'Salida' ? r.maquina : r.tipo === 'Entrada' ? 'Entrada al tanque' : 'Corrección de nivel';
+    const signo = r.tipo === 'Salida' ? '−' : r.tipo === 'Entrada' ? '+' : '= ';
+    const detalle = [r.comentario, r.quien].filter(Boolean).join(' · ');
+    html += `<button type="button" class="mov${r.anulado ? ' anulado' : ''}" data-id="${esc(r.id)}">
+      <span class="hora">${r.fecha.slice(11, 16)}</span>
+      <span class="que"><div>${esc(titulo)}${r.pendiente ? '<span class="chip pend">por enviar</span>' : ''}${r.anulado ? '<span class="chip">anulado</span>' : ''}</div>${detalle ? `<p>${esc(detalle)}</p>` : ''}</span>
+      <span class="lts${r.tipo === 'Entrada' ? ' mas' : ''}">${signo}${fmt(r.litros)} L</span></button>`;
+  });
+  if (rec.length > mostrar) html += `<button type="button" class="mas-btn" id="verMas">Ver más</button>`;
+  $('lista').innerHTML = html;
+  pintarEstado();
+}
+
+function pintarEstado() {
+  const e = $('estado');
+  const n = pend.length + anul.length;
+  e.classList.remove('mal');
+  if (!servidor() || !conf.clave) { e.textContent = 'Sin configurar'; e.classList.add('mal'); }
+  else if (errorSync === 'clave') { e.textContent = 'Clave incorrecta'; e.classList.add('mal'); }
+  else if (n) e.textContent = n + ' por enviar';
+  else if (errorSync) e.textContent = 'Sin señal';
+  else if (ultimaSync) e.textContent = '✓ Al día ' + new Date(ultimaSync).toLocaleTimeString('es-VE', { hour: 'numeric', minute: '2-digit' });
+  else e.textContent = '…';
+}
+
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+// Envía lo pendiente y trae todo lo de la hoja.
+let enviando = false;
+async function sincronizar() {
+  if (enviando || !servidor() || !conf.clave) { pintarEstado(); return; }
+  enviando = true;
+  const add = pend.slice(), quitar = anul.slice();
+  try {
+    const resp = await fetch(servidor(), {
+      method: 'POST', redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ k: conf.clave, add, anular: quitar })
+    });
+    const datos = await resp.json();
+    if (!datos.ok) throw new Error(datos.error || 'error');
+    filas = datos.rows;
+    const ids = new Set(filas.map(r => r.id));
+    const anulados = new Set(filas.filter(r => r.anulado).map(r => r.id));
+    pend = pend.filter(r => !ids.has(r.id));
+    anul = anul.filter(id => !anulados.has(id));
+    ultimaSync = Date.now(); errorSync = '';
+    guardar('filas', filas); guardar('pend', pend); guardar('anul', anul); guardar('ultimaSync', ultimaSync);
+  } catch (err) {
+    errorSync = /clave/.test(err.message) ? 'clave' : 'red';
+  }
+  enviando = false;
+  pintar();
+}
+
+// Formulario de movimiento
+let tipoActual = 'Salida', maqActual = '';
+function abrirMov(tipo) {
+  if (!conf.nombre) { abrirAjustes(); return; }
+  tipoActual = tipo; maqActual = '';
+  $('movTitulo').textContent = tipo === 'Salida' ? 'Tanquear máquina' : tipo === 'Entrada' ? 'Entrada de gasoil al tanque' : 'Corregir nivel del tanque';
+  $('bloqueMaq').style.display = tipo === 'Salida' ? '' : 'none';
+  $('lblLitros').textContent = tipo === 'Corrección' ? 'Litros que hay de verdad en el tanque' : 'Litros';
+  $('lblComent').textContent = tipo === 'Salida' ? 'Comentario (potrero, trabajo, observación)' : tipo === 'Entrada' ? 'Comentario (proveedor, factura, quién lo trajo)' : 'Comentario (cómo se midió)';
+  $('coment').placeholder = tipo === 'Salida' ? 'Ej: Potrero 5, rastreando' : '';
+  $('maquinas').innerHTML = MAQUINAS.map(m => `<button type="button" data-m="${esc(m)}">${esc(m)}</button>`).join('');
+  $('litros').value = ''; $('coment').value = ''; $('fecha').value = ahoraLocal(); $('avisoLitros').textContent = '';
+  $('dlgMov').showModal();
+  if (tipo !== 'Salida') setTimeout(() => $('litros').focus(), 50);
+}
+
+$('maquinas').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  maqActual = b.dataset.m;
+  [...$('maquinas').children].forEach(x => x.classList.toggle('on', x === b));
+  $('avisoLitros').textContent = '';
+  $('litros').focus();
+});
+
+$('litros').addEventListener('input', () => {
+  const l = Number($('litros').value.replace(',', '.'));
+  const { saldo } = calcular(movimientos());
+  $('avisoLitros').textContent = tipoActual === 'Salida' && l > saldo ? 'Ojo: es más de lo que marca el tanque (' + fmt(saldo) + ' L).' : '';
+});
+
+$('fMov').addEventListener('submit', e => {
+  const l = Number($('litros').value.replace(',', '.'));
+  if (tipoActual === 'Salida' && !maqActual) { e.preventDefault(); $('avisoLitros').textContent = 'Toque la máquina que se tanqueó.'; return; }
+  if (!(l > 0) && !(tipoActual === 'Corrección' && l === 0 && $('litros').value.trim() !== '')) { e.preventDefault(); $('avisoLitros').textContent = 'Escriba los litros.'; $('litros').focus(); return; }
+  pend.push({
+    id: nuevoId(), fecha: $('fecha').value || ahoraLocal(), tipo: tipoActual,
+    maquina: tipoActual === 'Salida' ? maqActual : '', litros: l,
+    comentario: $('coment').value.trim(), quien: conf.nombre
+  });
+  guardar('pend', pend);
+  pintar();
+  sincronizar();
+});
+$('cancelar').addEventListener('click', () => $('dlgMov').close());
+
+// Anular
+let idAnular = null;
+$('lista').addEventListener('click', e => {
+  if (e.target.id === 'verMas') { mostrar += 40; pintar(); return; }
+  const b = e.target.closest('.mov'); if (!b) return;
+  const r = movimientos().find(x => x.id === b.dataset.id);
+  if (!r || r.anulado) return;
+  idAnular = r.id;
+  $('anularTxt').textContent = (r.tipo === 'Salida' ? r.maquina : r.tipo) + ' · ' + fmt(r.litros) + ' L · ' + fechaCorta(r.fecha) + ' ' + r.fecha.slice(11, 16);
+  $('dlgAnular').showModal();
+});
+$('dlgAnular').addEventListener('close', () => {
+  if ($('dlgAnular').returnValue !== 'si' || !idAnular) return;
+  const i = pend.findIndex(r => r.id === idAnular);
+  if (i >= 0) pend.splice(i, 1); else anul.push(idAnular);
+  guardar('pend', pend); guardar('anul', anul);
+  idAnular = null;
+  pintar(); sincronizar();
+});
+
+// Ajustes
+function abrirAjustes() {
+  $('aNombre').value = conf.nombre; $('aClave').value = conf.clave; $('aServidor').value = servidor();
+  $('avisoAjustes').textContent = !conf.nombre ? 'Escriba su nombre para empezar.' : '';
+  $('dlgAjustes').showModal();
+}
+$('ajustes').addEventListener('click', abrirAjustes);
+$('estado').addEventListener('click', () => (!servidor() || !conf.clave || errorSync === 'clave') ? abrirAjustes() : sincronizar());
+$('cerrarAjustes').addEventListener('click', () => $('dlgAjustes').close());
+$('fAjustes').addEventListener('submit', e => {
+  if (!$('aNombre').value.trim()) { e.preventDefault(); $('avisoAjustes').textContent = 'Escriba su nombre.'; return; }
+  const srv = $('aServidor').value.trim();
+  conf = { nombre: $('aNombre').value.trim(), clave: $('aClave').value.trim(), servidor: srv === SERVIDOR ? '' : srv };
+  guardar('conf', conf);
+  errorSync = '';
+  pintar(); sincronizar();
+});
+
+document.querySelectorAll('[data-tipo]').forEach(b => b.addEventListener('click', () => abrirMov(b.dataset.tipo)));
+$('periodo').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  periodo = b.dataset.p;
+  [...$('periodo').children].forEach(x => x.classList.toggle('on', x === b));
+  pintar();
+});
+
+addEventListener('online', sincronizar);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) sincronizar(); });
+setInterval(() => { if (!document.hidden) sincronizar(); }, 60000);
+
+pintar();
+if (!conf.nombre || !conf.clave) abrirAjustes(); else sincronizar();
+
+if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
+</script>
+</body>
+</html>
