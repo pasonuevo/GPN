@@ -40,6 +40,7 @@ main{max-width:640px;margin:0 auto;padding:16px 16px calc(env(safe-area-inset-bo
 .saldo .sub{font-size:14px;color:var(--muted)}
 .acciones{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
 .btn{border:0;border-radius:12px;padding:16px 12px;font-size:17px;font-weight:600;background:var(--tint);color:var(--fg)}
+.acciones:has(#btnCorregir[hidden]) .btn[data-tipo="Entrada"]{grid-column:1/-1}
 .btn.prin{grid-column:1/-1;background:var(--verde);color:#F4EEE0;font-size:19px;padding:20px}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .btn.prin{background:#2E5A49}}
 .btn:active{opacity:.75}
@@ -101,7 +102,7 @@ textarea{min-height:70px;resize:vertical}
   <div class="acciones">
     <button class="btn prin" type="button" data-tipo="Salida">⛽ Tanquear máquina</button>
     <button class="btn" type="button" data-tipo="Entrada">＋ Entrada</button>
-    <button class="btn" type="button" data-tipo="Corrección">Corregir nivel</button>
+    <button class="btn" type="button" data-tipo="Corrección" id="btnCorregir" hidden>Corregir nivel</button>
   </div>
 
   <section class="tarjeta">
@@ -155,9 +156,8 @@ textarea{min-height:70px;resize:vertical}
 <dialog id="dlgAjustes">
   <form method="dialog" id="fAjustes">
     <h3>Ajustes de este teléfono</h3>
-    <label for="aNombre">¿Quién anota en este teléfono?</label>
-    <input id="aNombre" autocomplete="name" placeholder="Ej: Encargado San Miguel">
-    <label for="aClave">Clave</label>
+    <p class="nota" id="aQuien" style="font-size:16px"></p>
+    <label for="aClave">Su clave personal</label>
     <input id="aClave" inputmode="numeric" autocomplete="off">
     <label for="aServidor">Servidor</label>
     <input id="aServidor" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec" style="font-size:13px">
@@ -183,7 +183,8 @@ const guardar = (k, v) => { try { localStorage.setItem('gas.' + k, JSON.stringif
 let filas = cargar('filas', []);     // copia de lo que tiene la hoja
 let pend = cargar('pend', []);       // anotados aquí y aún no enviados
 let anul = cargar('anul', []);       // ids anulados aquí y aún no enviados
-let conf = cargar('conf', { nombre: '', clave: '', servidor: '' });
+let conf = cargar('conf', { clave: '', servidor: '' });
+let yo = cargar('yo', null);         // { nombre, rol } según la clave de este teléfono
 let ultimaSync = cargar('ultimaSync', null);
 let errorSync = '';
 let periodo = 'hoy';
@@ -243,6 +244,8 @@ function desde(p) {
 function pintar() {
   const movs = movimientos();
   const { saldo, ultEntrada } = calcular(movs);
+  pintarEstado();
+  $('btnCorregir').hidden = !esDueno();
   $('saldo').innerHTML = fmt(saldo) + ' <span>L</span>';
   $('saldo').classList.toggle('bajo', saldo < NIVEL_BAJO);
   $('saldoSub').textContent = ultEntrada ? 'Última entrada: ' + fmt(ultEntrada.litros) + ' L el ' + fechaCorta(ultEntrada.fecha) : 'Aún no hay entradas anotadas';
@@ -276,8 +279,10 @@ function pintar() {
   });
   if (rec.length > mostrar) html += `<button type="button" class="mas-btn" id="verMas">Ver más</button>`;
   $('lista').innerHTML = html;
-  pintarEstado();
 }
+
+const esDueno = () => !!yo && yo.rol === 'Dueño';
+const puedeAnular = r => esDueno() || (!!yo && r.quien === yo.nombre) || !!r.pendiente;
 
 function pintarEstado() {
   const e = $('estado');
@@ -308,10 +313,12 @@ async function sincronizar() {
     const datos = await resp.json();
     if (!datos.ok) throw new Error(datos.error || 'error');
     filas = datos.rows;
+    yo = datos.yo || null; guardar('yo', yo);
+    const rech = new Set(datos.rechazados || []);
     const ids = new Set(filas.map(r => r.id));
     const anulados = new Set(filas.filter(r => r.anulado).map(r => r.id));
-    pend = pend.filter(r => !ids.has(r.id));
-    anul = anul.filter(id => !anulados.has(id));
+    pend = pend.filter(r => !ids.has(r.id) && !rech.has(r.id));
+    anul = anul.filter(id => !anulados.has(id) && !rech.has(id));
     ultimaSync = Date.now(); errorSync = '';
     guardar('filas', filas); guardar('pend', pend); guardar('anul', anul); guardar('ultimaSync', ultimaSync);
   } catch (err) {
@@ -324,7 +331,7 @@ async function sincronizar() {
 // Formulario de movimiento
 let tipoActual = 'Salida', maqActual = '';
 function abrirMov(tipo) {
-  if (!conf.nombre) { abrirAjustes(); return; }
+  if (!conf.clave) { abrirAjustes(); return; }
   tipoActual = tipo; maqActual = '';
   $('movTitulo').textContent = tipo === 'Salida' ? 'Tanquear máquina' : tipo === 'Entrada' ? 'Entrada de gasoil al tanque' : 'Corregir nivel del tanque';
   $('bloqueMaq').style.display = tipo === 'Salida' ? '' : 'none';
@@ -358,7 +365,7 @@ $('fMov').addEventListener('submit', e => {
   pend.push({
     id: nuevoId(), fecha: $('fecha').value || ahoraLocal(), tipo: tipoActual,
     maquina: tipoActual === 'Salida' ? maqActual : '', litros: l,
-    comentario: $('coment').value.trim(), quien: conf.nombre
+    comentario: $('coment').value.trim(), quien: yo ? yo.nombre : ''
   });
   guardar('pend', pend);
   pintar();
@@ -372,7 +379,7 @@ $('lista').addEventListener('click', e => {
   if (e.target.id === 'verMas') { mostrar += 40; pintar(); return; }
   const b = e.target.closest('.mov'); if (!b) return;
   const r = movimientos().find(x => x.id === b.dataset.id);
-  if (!r || r.anulado) return;
+  if (!r || r.anulado || !puedeAnular(r)) return;
   idAnular = r.id;
   $('anularTxt').textContent = (r.tipo === 'Salida' ? r.maquina : r.tipo) + ' · ' + fmt(r.litros) + ' L · ' + fechaCorta(r.fecha) + ' ' + r.fecha.slice(11, 16);
   $('dlgAnular').showModal();
@@ -388,17 +395,20 @@ $('dlgAnular').addEventListener('close', () => {
 
 // Ajustes
 function abrirAjustes() {
-  $('aNombre').value = conf.nombre; $('aClave').value = conf.clave; $('aServidor').value = servidor();
-  $('avisoAjustes').textContent = !conf.nombre ? 'Escriba su nombre para empezar.' : '';
+  $('aClave').value = conf.clave; $('aServidor').value = servidor();
+  $('aQuien').textContent = yo ? 'Este teléfono anota como: ' + yo.nombre : 'Escriba la clave que le dio Guillermo.';
+  $('avisoAjustes').textContent = '';
   $('dlgAjustes').showModal();
 }
 $('ajustes').addEventListener('click', abrirAjustes);
 $('estado').addEventListener('click', () => (!servidor() || !conf.clave || errorSync === 'clave') ? abrirAjustes() : sincronizar());
 $('cerrarAjustes').addEventListener('click', () => $('dlgAjustes').close());
 $('fAjustes').addEventListener('submit', e => {
-  if (!$('aNombre').value.trim()) { e.preventDefault(); $('avisoAjustes').textContent = 'Escriba su nombre.'; return; }
+  if (!$('aClave').value.trim()) { e.preventDefault(); $('avisoAjustes').textContent = 'Escriba su clave.'; return; }
   const srv = $('aServidor').value.trim();
-  conf = { nombre: $('aNombre').value.trim(), clave: $('aClave').value.trim(), servidor: srv === SERVIDOR ? '' : srv };
+  const clave = $('aClave').value.trim();
+  if (clave !== conf.clave) { yo = null; guardar('yo', yo); }
+  conf = { clave, servidor: srv === SERVIDOR ? '' : srv };
   guardar('conf', conf);
   errorSync = '';
   pintar(); sincronizar();
@@ -417,7 +427,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) sinc
 setInterval(() => { if (!document.hidden) sincronizar(); }, 60000);
 
 pintar();
-if (!conf.nombre || !conf.clave) abrirAjustes(); else sincronizar();
+if (!conf.clave) abrirAjustes(); else sincronizar();
 
 if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
 </script>
