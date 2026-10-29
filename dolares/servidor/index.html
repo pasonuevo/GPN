@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Servidor de Divisas</title>
+<style>
+:root{--bg:#F4F3F8;--surface:#FFFFFF;--fg:#1F1E2A;--muted:#5E5C6B;--line:#D9D7E2;--prin:#2B2866;--tint:#E7E5F2}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#131219;--surface:#1C1B24;--fg:#E8E7EF;--muted:#A6A4B3;--line:#302E3B;--tint:#25233A}}
+body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.5 -apple-system,"Helvetica Neue",Arial,sans-serif}
+main{max-width:640px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:24px;margin:0 0 6px}
+ol{padding-left:22px}li{margin:0 0 14px}
+b{font-weight:650}
+.btn{display:block;width:100%;border:0;border-radius:12px;padding:16px;font:600 18px inherit;background:var(--prin);color:#F5F2E6;margin:6px 0 4px}
+.ok{color:#2F6B4A;font-size:15px;min-height:1.4em}
+pre{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:11px;max-height:160px;overflow:auto;white-space:pre-wrap;word-break:break-all}
+a{color:inherit}
+.nota{color:var(--muted);font-size:15px}
+</style>
+</head>
+<body>
+<main>
+<h1>Conectar Divisas con su hoja de Google</h1>
+<div style="background:var(--tint);border-radius:12px;padding:12px 14px;margin:12px 0">
+<b>¿Ya lo había instalado antes? Para actualizarlo:</b>
+<ol style="margin:8px 0 0">
+  <li>Toque <b>Copiar código</b> (abajo).</li>
+  <li>Abra la hoja <b>Divisas</b> → <b>Extensiones</b> → <b>Apps Script</b>, seleccione todo (Cmd+A), pegue (Cmd+V) y guarde (Cmd+S).</li>
+  <li><b>Implementar</b> → <b>Gestionar implementaciones</b> → el lápiz ✏️ → en «Versión» elija <b>Nueva versión</b> → <b>Implementar</b>. El enlace sigue siendo el mismo.</li>
+</ol>
+</div>
+<p class="nota">Instalación desde cero: se hace una sola vez, mejor desde una computadora. Es una hoja nueva y aparte: no toca su Excel del Centro de Operaciones.</p>
+<ol>
+  <li>Abra <a href="https://sheets.new" target="_blank" rel="noopener"><b>sheets.new</b></a> (crea una hoja de Google en blanco). Póngale de nombre <b>Divisas</b>.</li>
+  <li>En esa hoja: menú <b>Extensiones</b> → <b>Apps Script</b>. Póngale de nombre al proyecto <b>Servidor Divisas</b>.</li>
+  <li>Toque este botón para copiar el código:
+    <button class="btn" id="copiar" type="button">Copiar código</button>
+    <div class="ok" id="ok"></div>
+  </li>
+  <li>En Apps Script, borre lo que trae escrito y <b>pegue</b> el código. Toque el disquete para <b>Guardar</b>.</li>
+  <li>Arriba elija la función <b>preparar</b> y toque <b>Ejecutar</b>. Google pide permiso: <b>Revisar permisos</b> → su cuenta → <b>Configuración avanzada</b> → <b>Ir a Servidor Divisas</b> → <b>Permitir</b>. En la hoja aparecen las pestañas Operaciones, Cuentas y Usuarios. <b>Su clave</b> está en Usuarios (la puede cambiar).</li>
+  <li>Toque <b>Implementar</b> → <b>Nueva implementación</b>. En el engranaje elija <b>Aplicación web</b>. En «Ejecutar como» deje <b>Yo</b> y en «Quién tiene acceso» elija <b>Cualquier usuario</b>. Toque <b>Implementar</b>.</li>
+  <li>Copie la <b>URL de la aplicación web</b> (empieza con https://script.google.com/macros/s/…). Péguela en la app, en ⚙︎ → <b>Servidor</b>, junto con su clave. O mándesela a Claude para dejarla fija.</li>
+</ol>
+<p class="nota">Para que otra persona use la app, agréguela en la pestaña Usuarios con su propia clave. Con Rol «Dueño» puede anular operaciones; cualquier otro rol solo anota.</p>
+<pre id="codigo">Cargando…</pre>
+</main>
+<script>
+let codigo = '';
+fetch('Codigo.gs').then(r => r.text()).then(t => { codigo = t; document.getElementById('codigo').textContent = t; });
+document.getElementById('copiar').addEventListener('click', async () => {
+  const ok = document.getElementById('ok');
+  try { await navigator.clipboard.writeText(codigo); ok.textContent = '✓ Copiado. Ahora péguelo en Apps Script.'; }
+  catch (e) {
+    const r = document.createRange(); r.selectNodeContents(document.getElementById('codigo'));
+    getSelection().removeAllRanges(); getSelection().addRange(r);
+    ok.textContent = 'Quedó seleccionado abajo: toque «Copiar».';
+  }
+});
+</script>
+</body>
+</html>
