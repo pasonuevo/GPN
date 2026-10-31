@@ -84,6 +84,29 @@ textarea{min-height:70px;resize:vertical}
 .fila .btn{flex:1}
 .aviso{font-size:14px;color:var(--warn);margin-top:8px;min-height:1em}
 .nota{font-size:13px;color:var(--muted);margin-top:6px;line-height:1.4}
+.tabs{display:grid;grid-template-columns:1fr 1fr;background:var(--tint);border-radius:12px;padding:3px;margin-bottom:14px}
+.tabs button{border:0;background:none;border-radius:10px;padding:11px 8px;font-size:16px;font-weight:600;color:var(--muted)}
+.tabs button.on{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.tabs .cuenta{display:inline-block;min-width:20px;font-size:12px;padding:1px 6px;border-radius:99px;background:var(--warn);color:#fff;margin-left:6px;vertical-align:2px}
+.alerta{display:block;width:100%;text-align:left;border:0;border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:15px;font-weight:600;background:#F6DCD2;color:#7A2E16}
+.alerta.pronto{background:#F2E3C4;color:#7A5418}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .alerta{background:#4A2418;color:#F4C3B0}:root:not([data-theme="light"]) .alerta.pronto{background:#43351A;color:#F2D49A}}
+.horo{font-variant-numeric:tabular-nums;font-size:20px;font-weight:700}
+.horo small{font-size:13px;color:var(--muted);font-weight:500}
+.srv{display:grid;grid-template-columns:12px 1fr auto;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line);font-size:15px}
+.srv .punto{width:12px;height:12px;border-radius:50%;background:var(--ok)}
+.srv.pronto .punto{background:var(--cuero)}
+.srv.vencido .punto{background:var(--warn)}
+.srv.nd .punto{background:var(--line)}
+.srv b{font-variant-numeric:tabular-nums;text-align:right;font-size:14px}
+.srv.vencido b{color:var(--warn)}
+.srv.nd b{color:var(--muted);font-weight:500}
+.srv small{display:block;color:var(--muted);font-size:12px;margin-top:1px}
+.trabajos{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.trabajos button{border:2px solid var(--line);background:var(--bg);border-radius:10px;padding:11px 8px;font-size:15px;font-weight:600;text-align:left}
+.trabajos button.on{border-color:var(--verde);background:var(--tint)}
+.trabajos button.on::before{content:"✓ "}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .trabajos button.on{border-color:#8FB8DC}}
 </style>
 </head>
 <body>
@@ -93,6 +116,25 @@ textarea{min-height:70px;resize:vertical}
   <button class="icono" id="ajustes" type="button" aria-label="Ajustes">⚙︎</button>
 </header>
 <main>
+  <nav class="tabs" id="tabs">
+    <button type="button" data-v="gasoil">⛽ Gasoil</button><button type="button" data-v="servicios">🔧 Servicios<span class="cuenta" id="cuentaServ" hidden></span></button>
+  </nav>
+
+  <div id="vistaServicios" hidden>
+    <div id="servViejo" class="tarjeta" hidden>
+      <h2>Falta actualizar el servidor</h2>
+      <p class="nota" style="font-size:15px">Para usar los servicios hay que pegar el código nuevo en Apps Script y publicar una nueva versión. Las instrucciones están en <a href="servidor/">la página del servidor</a>.</p>
+    </div>
+    <div class="acciones"><button class="btn prin" type="button" id="btnServicio">🔧 Registrar servicio</button></div>
+    <div id="maqServ"></div>
+    <section class="tarjeta">
+      <h2>Historial de servicios</h2>
+      <div id="listaServ"></div>
+    </section>
+  </div>
+
+  <div id="vistaGasoil">
+  <button type="button" class="alerta" id="alertaServ" hidden></button>
   <section class="tarjeta saldo">
     <div class="et">En el tanque</div>
     <div class="num" id="saldo">0 <span>L</span></div>
@@ -118,6 +160,7 @@ textarea{min-height:70px;resize:vertical}
     <h2>Movimientos</h2>
     <div id="lista"></div>
   </section>
+  </div>
 </main>
 
 <dialog id="dlgMov">
@@ -130,6 +173,12 @@ textarea{min-height:70px;resize:vertical}
     <label for="litros" id="lblLitros">Litros</label>
     <input id="litros" class="grande" inputmode="decimal" autocomplete="off" placeholder="0">
     <div class="aviso" id="avisoLitros"></div>
+    <div id="bloqueHoras" hidden>
+      <label for="horas">Horómetro de la máquina (horas)</label>
+      <input id="horas" inputmode="decimal" autocomplete="off" placeholder="Opcional">
+      <div class="nota" id="notaHoras"></div>
+      <div class="aviso" id="avisoHoras"></div>
+    </div>
     <label for="coment" id="lblComent">Comentario</label>
     <textarea id="coment"></textarea>
     <label for="fecha">Fecha y hora</label>
@@ -141,11 +190,34 @@ textarea{min-height:70px;resize:vertical}
   </form>
 </dialog>
 
+<dialog id="dlgServ">
+  <form method="dialog" id="fServ">
+    <h3>Registrar servicio</h3>
+    <label>Máquina</label>
+    <div class="maquinas" id="servMaquinas"></div>
+    <label for="servHoras">Horómetro cuando se hizo el servicio (horas)</label>
+    <input id="servHoras" class="grande" inputmode="decimal" autocomplete="off" placeholder="0">
+    <div class="nota" id="notaServHoras"></div>
+    <label>¿Qué se cambió?</label>
+    <div class="trabajos" id="trabajos"><div class="nota">Primero toque la máquina.</div></div>
+    <label for="servComent">Comentario (marca del aceite, litros, quién lo hizo)</label>
+    <textarea id="servComent"></textarea>
+    <label for="servFecha">Fecha y hora</label>
+    <input id="servFecha" type="datetime-local">
+    <p class="nota">Si el servicio se hizo antes, ponga la fecha y las horas de ese día: así la app empieza a contar desde ahí.</p>
+    <div class="aviso" id="avisoServ"></div>
+    <div class="fila">
+      <button class="btn" type="button" id="cancelarServ">Cancelar</button>
+      <button class="btn prin" type="submit" value="ok" style="grid-column:auto">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
 <dialog id="dlgAnular">
   <form method="dialog">
-    <h3>¿Anular este movimiento?</h3>
+    <h3 id="anularTit">¿Anular este movimiento?</h3>
     <p id="anularTxt" class="nota" style="font-size:16px"></p>
-    <p class="nota">Queda tachado en la lista y en la hoja, y deja de contar en el saldo.</p>
+    <p class="nota" id="anularNota">Queda tachado en la lista y en la hoja, y deja de contar en el saldo.</p>
     <div class="fila">
       <button class="btn" value="no">No</button>
       <button class="btn prin" value="si" style="grid-column:auto;background:#A2482B">Anular</button>
@@ -186,9 +258,16 @@ let anul = cargar('anul', []);       // ids anulados aquí y aún no enviados
 let conf = cargar('conf', { clave: '', servidor: '' });
 let yo = cargar('yo', null);         // { nombre, rol } según la clave de este teléfono
 let ultimaSync = cargar('ultimaSync', null);
+let serv = cargar('serv', []);       // servicios que tiene la hoja
+let pendServ = cargar('pendServ', []);
+let anulServ = cargar('anulServ', []);
+let plan = cargar('plan', []);       // [{ maquina, servicio, cada }] de la pestaña "Plan de servicios"
+let verServidor = cargar('verServidor', 0);
+let vista = cargar('vista', 'gasoil');
 let errorSync = '';
 let periodo = 'hoy';
 let mostrar = 40;
+const conServicios = () => verServidor >= 2;
 
 const servidor = () => (conf.servidor || SERVIDOR).trim();
 
@@ -220,6 +299,54 @@ function calcular(movs) {
   return { saldo, ultEntrada };
 }
 
+// Servicios: hoja + pendientes, con anulaciones aplicadas, ordenados por fecha.
+function servicios() {
+  const enHoja = new Set(serv.map(r => r.id));
+  const todos = serv.concat(pendServ.filter(r => !enHoja.has(r.id)).map(r => ({ ...r, pendiente: true })));
+  const anulSet = new Set(anulServ);
+  return todos.map(r => anulSet.has(r.id) ? { ...r, anulado: true } : r)
+    .sort((a, b) => a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0);
+}
+
+// Lecturas del horómetro de una máquina: las anotadas al tanquear y las de los servicios.
+function lecturas(m, movs, servs) {
+  return movs.filter(r => r.tipo === 'Salida' && !r.anulado && r.maquina === m && r.horas > 0).map(r => ({ fecha: r.fecha, horas: r.horas }))
+    .concat(servs.filter(r => !r.anulado && r.maquina === m && r.horas > 0).map(r => ({ fecha: r.fecha, horas: r.horas })));
+}
+
+// Estado de los servicios de una máquina: horas actuales, horas por día y cuánto falta para cada servicio.
+function estadoMaq(m, movs, servs) {
+  const lec = lecturas(m, movs, servs);
+  const ult = lec.reduce((a, r) => !a || r.horas > a.horas ? r : a, null);
+  const actual = ult ? ult.horas : 0;
+  // Horas por día con las lecturas de los últimos 60 días.
+  let porDia = 0;
+  if (ult) {
+    const lim = new Date(Date.now() - 60 * 864e5).toISOString().slice(0, 10);
+    const rec = lec.filter(r => r.fecha.slice(0, 10) >= lim);
+    const pri = rec.reduce((a, r) => !a || r.fecha < a.fecha ? r : a, null);
+    const dias = pri ? (new Date(ult.fecha) - new Date(pri.fecha)) / 864e5 : 0;
+    if (dias >= 3 && ult.horas > pri.horas) porDia = (ult.horas - pri.horas) / dias;
+  }
+  const items = plan.filter(p => p.maquina === m).map(p => {
+    const hecho = servs.filter(r => !r.anulado && r.maquina === m && r.trabajo.includes(p.servicio))
+      .reduce((a, r) => !a || r.horas > a.horas || (r.horas === a.horas && r.fecha > a.fecha) ? r : a, null);
+    if (!hecho || !ult) return { ...p, estado: 'nd', hecho };
+    const toca = hecho.horas + p.cada;
+    const faltan = toca - actual;
+    const estado = faltan <= 0 ? 'vencido' : faltan <= Math.max(25, p.cada * 0.1) ? 'pronto' : 'ok';
+    return { ...p, estado, hecho, toca, faltan };
+  });
+  return { m, actual, ult, porDia, items };
+}
+
+function estados() {
+  const movs = movimientos(), servs = servicios();
+  return MAQUINAS.map(m => estadoMaq(m, movs, servs));
+}
+
+const fmtH = n => Math.round(n).toLocaleString('es-VE');
+
 function fechaCorta(iso) {
   const [y, m, d] = iso.slice(0, 10).split('-');
   return d + '/' + m;
@@ -245,6 +372,7 @@ function pintar() {
   const movs = movimientos();
   const { saldo, ultEntrada } = calcular(movs);
   pintarEstado();
+  pintarServicios();
   $('btnCorregir').hidden = !esDueno();
   $('saldo').innerHTML = fmt(saldo) + ' <span>L</span>';
   $('saldo').classList.toggle('bajo', saldo < NIVEL_BAJO);
@@ -271,7 +399,7 @@ function pintar() {
     if (dia !== diaAnt) { html += `<div class="dia">${esc(nombreDia(r.fecha))}</div>`; diaAnt = dia; }
     const titulo = r.tipo === 'Salida' ? r.maquina : r.tipo === 'Entrada' ? 'Entrada al tanque' : 'Corrección de nivel';
     const signo = r.tipo === 'Salida' ? '−' : r.tipo === 'Entrada' ? '+' : '= ';
-    const detalle = [r.comentario, r.quien].filter(Boolean).join(' · ');
+    const detalle = [r.horas > 0 ? fmtH(r.horas) + ' h' : '', r.comentario, r.quien].filter(Boolean).join(' · ');
     html += `<button type="button" class="mov${r.anulado ? ' anulado' : ''}" data-id="${esc(r.id)}">
       <span class="hora">${r.fecha.slice(11, 16)}</span>
       <span class="que"><div>${esc(titulo)}${r.pendiente ? '<span class="chip pend">por enviar</span>' : ''}${r.anulado ? '<span class="chip">anulado</span>' : ''}</div>${detalle ? `<p>${esc(detalle)}</p>` : ''}</span>
@@ -281,13 +409,66 @@ function pintar() {
   $('lista').innerHTML = html;
 }
 
+// Pestañas, aviso en la pantalla del gasoil y pantalla de servicios.
+function pintarServicios() {
+  [...$('tabs').children].forEach(b => b.classList.toggle('on', b.dataset.v === vista));
+  $('vistaGasoil').hidden = vista !== 'gasoil';
+  $('vistaServicios').hidden = vista !== 'servicios';
+  const est = conServicios() ? estados() : [];
+  const todos = est.flatMap(e => e.items.map(i => ({ ...i, m: e.m })));
+  const venc = todos.filter(i => i.estado === 'vencido'), pron = todos.filter(i => i.estado === 'pronto');
+
+  $('cuentaServ').hidden = !venc.length && !pron.length;
+  $('cuentaServ').textContent = venc.length + pron.length;
+  const al = $('alertaServ');
+  al.hidden = !venc.length && !pron.length;
+  al.classList.toggle('pronto', !venc.length);
+  const nombres = l => l.slice(0, 2).map(i => i.m + ': ' + i.servicio.toLowerCase()).join(', ') + (l.length > 2 ? ' y ' + (l.length - 2) + ' más' : '');
+  al.textContent = venc.length ? '⚠ Servicio vencido · ' + nombres(venc) : '🔧 Servicio por tocar · ' + nombres(pron);
+
+  $('servViejo').hidden = conServicios() || !ultimaSync;
+  $('btnServicio').disabled = !conServicios();
+  if (!conServicios()) { $('maqServ').innerHTML = ''; $('listaServ').innerHTML = ''; return; }
+
+  $('maqServ').innerHTML = est.map(e => {
+    let cab = e.ult
+      ? `<span class="horo">${fmtH(e.actual)} <small>h</small></span>`
+      : `<span class="horo"><small>sin horas</small></span>`;
+    let sub = e.ult ? 'Última lectura ' + fechaCorta(e.ult.fecha) + (e.porDia ? ' · ≈ ' + fmt(e.porDia) + ' h por día' : '') : 'Anote el horómetro al tanquear o registre el último servicio.';
+    const orden = { vencido: 0, pronto: 1, ok: 2, nd: 3 };
+    const filas = e.items.slice().sort((a, b) => orden[a.estado] - orden[b.estado] || (a.faltan || 0) - (b.faltan || 0)).map(i => {
+      let txt, det;
+      if (i.estado === 'nd') {
+        txt = 'Sin registro';
+        det = 'Cada ' + fmtH(i.cada) + ' h' + (i.hecho ? ' · último a las ' + fmtH(i.hecho.horas) + ' h' : ' · registre el último que se hizo');
+      } else {
+        const dias = e.porDia && i.faltan > 0 ? Math.round(i.faltan / e.porDia) : 0;
+        txt = i.faltan <= 0 ? 'Vencido hace ' + fmtH(-i.faltan) + ' h' : 'Faltan ' + fmtH(i.faltan) + ' h' + (dias ? ' <small>≈ ' + dias + (dias === 1 ? ' día' : ' días') + '</small>' : '');
+        det = 'Cada ' + fmtH(i.cada) + ' h · toca a las ' + fmtH(i.toca) + ' h · último ' + fechaCorta(i.hecho.fecha) + ' a las ' + fmtH(i.hecho.horas) + ' h';
+      }
+      return `<div class="srv ${i.estado}"><span class="punto"></span><span>${esc(i.servicio)}<small>${esc(det)}</small></span><b>${txt}</b></div>`;
+    }).join('');
+    return `<section class="tarjeta"><h2>${esc(e.m)} ${cab}</h2><p class="nota" style="margin:-6px 0 8px">${esc(sub)}</p>${filas || '<p class="nota">Esta máquina no tiene servicios en la pestaña «Plan de servicios» de la hoja.</p>'}</section>`;
+  }).join('');
+
+  const rec = servicios().slice().reverse();
+  if (!rec.length) { $('listaServ').innerHTML = '<div class="vacio">Todavía no hay servicios.<br>Empiece registrando el último que se le hizo a cada máquina.</div>'; return; }
+  $('listaServ').innerHTML = rec.slice(0, 60).map(r => {
+    const detalle = [r.comentario, r.quien].filter(Boolean).join(' · ');
+    return `<button type="button" class="mov${r.anulado ? ' anulado' : ''}" data-id="${esc(r.id)}">
+      <span class="hora">${fechaCorta(r.fecha)}</span>
+      <span class="que"><div>${esc(r.maquina)}${r.pendiente ? '<span class="chip pend">por enviar</span>' : ''}${r.anulado ? '<span class="chip">anulado</span>' : ''}</div><p>${esc(r.trabajo.join(', '))}${detalle ? ' · ' + esc(detalle) : ''}</p></span>
+      <span class="lts">${fmtH(r.horas)} h</span></button>`;
+  }).join('');
+}
+
 const esDueno = () => !!yo && yo.rol === 'Dueño';
 // Solo el dueño anula lo que ya está en la hoja; lo que aún no se envió se puede quitar en el mismo teléfono.
 const puedeAnular = r => esDueno() || !!r.pendiente;
 
 function pintarEstado() {
   const e = $('estado');
-  const n = pend.length + anul.length;
+  const n = pend.length + anul.length + pendServ.length + anulServ.length;
   e.classList.remove('mal');
   if (!servidor() || !conf.clave) { e.textContent = 'Sin configurar'; e.classList.add('mal'); }
   else if (errorSync === 'clave') { e.textContent = 'Clave incorrecta'; e.classList.add('mal'); }
@@ -305,11 +486,12 @@ async function sincronizar() {
   if (enviando || !servidor() || !conf.clave) { pintarEstado(); return; }
   enviando = true;
   const add = pend.slice(), quitar = anul.slice();
+  const addServ = conServicios() ? pendServ.slice() : [], anularServ = conServicios() ? anulServ.slice() : [];
   try {
     const resp = await fetch(servidor(), {
       method: 'POST', redirect: 'follow',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ k: conf.clave, add, anular: quitar })
+      body: JSON.stringify({ k: conf.clave, add, anular: quitar, addServ, anularServ })
     });
     const datos = await resp.json();
     if (!datos.ok) throw new Error(datos.error || 'error');
@@ -320,6 +502,15 @@ async function sincronizar() {
     const anulados = new Set(filas.filter(r => r.anulado).map(r => r.id));
     pend = pend.filter(r => !ids.has(r.id) && !rech.has(r.id));
     anul = anul.filter(id => !anulados.has(id) && !rech.has(id));
+    verServidor = datos.version || 0; guardar('verServidor', verServidor);
+    if (conServicios()) {
+      serv = datos.servicios || []; plan = datos.plan || [];
+      const idsS = new Set(serv.map(r => r.id));
+      const anuladosS = new Set(serv.filter(r => r.anulado).map(r => r.id));
+      pendServ = pendServ.filter(r => !idsS.has(r.id) && !rech.has(r.id));
+      anulServ = anulServ.filter(id => !anuladosS.has(id) && !rech.has(id));
+      guardar('serv', serv); guardar('plan', plan); guardar('pendServ', pendServ); guardar('anulServ', anulServ);
+    }
     ultimaSync = Date.now(); errorSync = '';
     guardar('filas', filas); guardar('pend', pend); guardar('anul', anul); guardar('ultimaSync', ultimaSync);
   } catch (err) {
@@ -340,6 +531,8 @@ function abrirMov(tipo) {
   $('lblComent').textContent = tipo === 'Salida' ? 'Comentario (potrero, trabajo, observación)' : tipo === 'Entrada' ? 'Comentario (proveedor, factura, quién lo trajo)' : 'Comentario (cómo se midió)';
   $('coment').placeholder = tipo === 'Salida' ? 'Ej: Potrero 5, rastreando' : '';
   $('maquinas').innerHTML = MAQUINAS.map(m => `<button type="button" data-m="${esc(m)}">${esc(m)}</button>`).join('');
+  $('bloqueHoras').hidden = !(tipo === 'Salida' && conServicios());
+  $('horas').value = ''; $('notaHoras').textContent = ''; $('avisoHoras').textContent = '';
   $('litros').value = ''; $('coment').value = ''; $('fecha').value = ahoraLocal(); $('avisoLitros').textContent = '';
   $('dlgMov').showModal();
   if (tipo !== 'Salida') setTimeout(() => $('litros').focus(), 50);
@@ -350,8 +543,29 @@ $('maquinas').addEventListener('click', e => {
   maqActual = b.dataset.m;
   [...$('maquinas').children].forEach(x => x.classList.toggle('on', x === b));
   $('avisoLitros').textContent = '';
+  notaHoras();
   $('litros').focus();
 });
+
+// Última lectura del horómetro de la máquina elegida, para comparar.
+function ultimaLectura(m) {
+  return lecturas(m, movimientos(), servicios()).reduce((a, r) => !a || r.horas > a.horas ? r : a, null);
+}
+function notaHoras() {
+  const u = maqActual && ultimaLectura(maqActual);
+  $('notaHoras').textContent = u ? 'Última lectura: ' + fmtH(u.horas) + ' h el ' + fechaCorta(u.fecha) : maqActual ? 'Todavía no hay horas anotadas de esta máquina.' : '';
+  revisarHoras();
+}
+function revisarHoras() {
+  const h = Number($('horas').value.replace(',', '.'));
+  const u = maqActual && ultimaLectura(maqActual);
+  let t = '';
+  if ($('horas').value.trim() && !(h > 0)) t = 'Escriba solo el número de horas.';
+  else if (h > 0 && u && h < u.horas) t = 'Ojo: es menos que la última lectura (' + fmtH(u.horas) + ' h).';
+  else if (h > 0 && u && h - u.horas > 500) t = 'Ojo: son ' + fmtH(h - u.horas) + ' h más que la última lectura. Revise el número.';
+  $('avisoHoras').textContent = t;
+}
+$('horas').addEventListener('input', revisarHoras);
 
 $('litros').addEventListener('input', () => {
   const l = Number($('litros').value.replace(',', '.'));
@@ -363,9 +577,11 @@ $('fMov').addEventListener('submit', e => {
   const l = Number($('litros').value.replace(',', '.'));
   if (tipoActual === 'Salida' && !maqActual) { e.preventDefault(); $('avisoLitros').textContent = 'Toque la máquina que se tanqueó.'; return; }
   if (!(l > 0) && !(tipoActual === 'Corrección' && l === 0 && $('litros').value.trim() !== '')) { e.preventDefault(); $('avisoLitros').textContent = 'Escriba los litros.'; $('litros').focus(); return; }
+  const h = tipoActual === 'Salida' && conServicios() ? Number($('horas').value.replace(',', '.')) : 0;
+  if ($('horas').value.trim() && tipoActual === 'Salida' && !(h > 0)) { e.preventDefault(); $('avisoHoras').textContent = 'Escriba solo el número de horas, o déjelo vacío.'; $('horas').focus(); return; }
   pend.push({
     id: nuevoId(), fecha: $('fecha').value || ahoraLocal(), tipo: tipoActual,
-    maquina: tipoActual === 'Salida' ? maqActual : '', litros: l,
+    maquina: tipoActual === 'Salida' ? maqActual : '', litros: l, horas: h > 0 ? h : 0,
     comentario: $('coment').value.trim(), quien: yo ? yo.nombre : ''
   });
   guardar('pend', pend);
@@ -375,24 +591,94 @@ $('fMov').addEventListener('submit', e => {
 $('cancelar').addEventListener('click', () => $('dlgMov').close());
 
 // Anular
-let idAnular = null;
+let idAnular = null, anularServicio = false;
 $('lista').addEventListener('click', e => {
   if (e.target.id === 'verMas') { mostrar += 40; pintar(); return; }
   const b = e.target.closest('.mov'); if (!b) return;
   const r = movimientos().find(x => x.id === b.dataset.id);
   if (!r || r.anulado || !puedeAnular(r)) return;
-  idAnular = r.id;
+  idAnular = r.id; anularServicio = false;
+  $('anularTit').textContent = '¿Anular este movimiento?';
+  $('anularNota').textContent = 'Queda tachado en la lista y en la hoja, y deja de contar en el saldo.';
   $('anularTxt').textContent = (r.tipo === 'Salida' ? r.maquina : r.tipo) + ' · ' + fmt(r.litros) + ' L · ' + fechaCorta(r.fecha) + ' ' + r.fecha.slice(11, 16);
   $('dlgAnular').showModal();
 });
 $('dlgAnular').addEventListener('close', () => {
   if ($('dlgAnular').returnValue !== 'si' || !idAnular) return;
-  const i = pend.findIndex(r => r.id === idAnular);
-  if (i >= 0) pend.splice(i, 1); else anul.push(idAnular);
-  guardar('pend', pend); guardar('anul', anul);
+  const [p, a] = anularServicio ? [pendServ, anulServ] : [pend, anul];
+  const i = p.findIndex(r => r.id === idAnular);
+  if (i >= 0) p.splice(i, 1); else a.push(idAnular);
+  guardar('pend', pend); guardar('anul', anul); guardar('pendServ', pendServ); guardar('anulServ', anulServ);
   idAnular = null;
   pintar(); sincronizar();
 });
+
+// Servicios: registrar y anular
+let servMaq = '', servTrab = [];
+const OTRO = 'Otro';
+function abrirServ() {
+  if (!conf.clave) { abrirAjustes(); return; }
+  servMaq = ''; servTrab = [];
+  $('servMaquinas').innerHTML = MAQUINAS.map(m => `<button type="button" data-m="${esc(m)}">${esc(m)}</button>`).join('');
+  $('trabajos').innerHTML = '<div class="nota">Primero toque la máquina.</div>';
+  $('servHoras').value = ''; $('servComent').value = ''; $('servFecha').value = ahoraLocal();
+  $('notaServHoras').textContent = ''; $('avisoServ').textContent = '';
+  $('dlgServ').showModal();
+}
+function pintarTrabajos() {
+  const lista = plan.filter(p => p.maquina === servMaq).map(p => p.servicio).concat(OTRO);
+  $('trabajos').innerHTML = lista.map(t => `<button type="button" data-t="${esc(t)}" class="${servTrab.includes(t) ? 'on' : ''}">${esc(t === OTRO ? 'Otro (explique abajo)' : t)}</button>`).join('');
+}
+$('servMaquinas').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  servMaq = b.dataset.m; servTrab = [];
+  [...$('servMaquinas').children].forEach(x => x.classList.toggle('on', x === b));
+  const u = ultimaLectura(servMaq);
+  $('notaServHoras').textContent = u ? 'Última lectura: ' + fmtH(u.horas) + ' h el ' + fechaCorta(u.fecha) : 'Todavía no hay horas anotadas de esta máquina.';
+  $('avisoServ').textContent = '';
+  pintarTrabajos();
+});
+$('trabajos').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const t = b.dataset.t;
+  servTrab = servTrab.includes(t) ? servTrab.filter(x => x !== t) : servTrab.concat(t);
+  pintarTrabajos();
+  $('avisoServ').textContent = '';
+});
+$('fServ').addEventListener('submit', e => {
+  const h = Number($('servHoras').value.replace(',', '.'));
+  const aviso = t => { e.preventDefault(); $('avisoServ').textContent = t; };
+  if (!servMaq) return aviso('Toque la máquina.');
+  if (!(h > 0)) return aviso('Escriba las horas del horómetro.');
+  if (!servTrab.length) return aviso('Marque lo que se cambió.');
+  if (servTrab.includes(OTRO) && !$('servComent').value.trim()) return aviso('Explique en el comentario qué fue «Otro».');
+  pendServ.push({
+    id: nuevoId(), fecha: $('servFecha').value || ahoraLocal(), maquina: servMaq, horas: h,
+    trabajo: servTrab.slice(), comentario: $('servComent').value.trim(), quien: yo ? yo.nombre : ''
+  });
+  guardar('pendServ', pendServ);
+  pintar(); sincronizar();
+});
+$('cancelarServ').addEventListener('click', () => $('dlgServ').close());
+$('btnServicio').addEventListener('click', abrirServ);
+$('listaServ').addEventListener('click', e => {
+  const b = e.target.closest('.mov'); if (!b) return;
+  const r = servicios().find(x => x.id === b.dataset.id);
+  if (!r || r.anulado || !puedeAnular(r)) return;
+  idAnular = r.id; anularServicio = true;
+  $('anularTit').textContent = '¿Anular este servicio?';
+  $('anularNota').textContent = 'Queda tachado en la lista y en la hoja, y deja de contar para los próximos servicios.';
+  $('anularTxt').textContent = r.maquina + ' · ' + r.trabajo.join(', ') + ' · ' + fmtH(r.horas) + ' h · ' + fechaCorta(r.fecha);
+  $('dlgAnular').showModal();
+});
+
+// Pestañas
+$('tabs').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  vista = b.dataset.v; guardar('vista', vista);
+  pintar(); scrollTo(0, 0);
+});
+$('alertaServ').addEventListener('click', () => { vista = 'servicios'; guardar('vista', vista); pintar(); scrollTo(0, 0); });
 
 // Ajustes
 function abrirAjustes() {
