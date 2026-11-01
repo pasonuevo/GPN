@@ -250,7 +250,7 @@ const MAQUINAS = ['Landini', 'John Deere', 'Fiat', 'Ford'];       // se tanquean
 const VEHICULOS = ['Ford F-150', 'Jeep Grand Cherokee', 'Silverado']; // solo servicios; cuentan kilómetros
 const EQUIPOS = MAQUINAS.concat(VEHICULOS);
 // Intervalos provisionales de los vehículos (km) mientras no tengan filas en la pestaña "Plan de servicios".
-const PLAN_VEHICULO = [['Aceite de motor', 5000], ['Filtro de aceite', 5000], ['Filtro de aire', 15000], ['Rotación de cauchos', 10000], ['Frenos (revisar)', 20000]];
+const PLAN_VEHICULO = [['Aceite de motor', 5000], ['Filtro de aceite', 5000], ['Rotación de cauchos', 10000], ['Cauchos nuevos', 50000]];
 const esVehiculo = m => VEHICULOS.includes(m);
 const un = m => esVehiculo(m) ? 'km' : 'h';
 function planDe(m) {
