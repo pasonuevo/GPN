@@ -2,7 +2,7 @@
 // Se pega en Apps Script (script.google.com) y se implementa como aplicación web ("Cualquier usuario").
 const HOJA_ID = '1WJUGq9Wufpa8zzgdklmaCW1GS8GKAgHpdgZC2O-Yx8w';
 const ZONA = 'America/Caracas';
-const VERSION = 2;
+const VERSION = 3;
 const COLS = ['Fecha', 'Tipo', 'Máquina', 'Litros', 'Comentario', 'Anotado por', 'Saldo', 'Anulado', 'Registrado', 'ID', 'Horas'];
 const COLS_SERV = ['Fecha', 'Máquina', 'Horas', 'Trabajo', 'Comentario', 'Anotado por', 'Anulado', 'Registrado', 'ID'];
 const COLS_PLAN = ['Máquina', 'Servicio', 'Cada (horas)', 'Activo'];
@@ -25,12 +25,24 @@ function doPost(e) {
     const candado = LockService.getScriptLock();
     candado.waitLock(20000);
     try {
+      // Reiniciar desde cero (solo el dueño): el gasoil y los servicios van por separado.
+      if (datos.reiniciar === 'gasoil' || datos.reiniciar === 'servicios') {
+        if (!dueno) throw new Error('solo el dueño puede reiniciar');
+        reiniciar(libro, datos.reiniciar);
+      }
+      const props = PropertiesService.getScriptProperties();
+      // 10 minutos de margen por si el reloj de algún teléfono está atrasado.
+      const desdeGas = (Number(props.getProperty('reinicio_gasoil')) || 0) - 600000;
+      const desdeServ = (Number(props.getProperty('reinicio_servicios')) || 0) - 600000;
+
       // Movimientos de gasoil
       const hoja = hojas(libro).mov;
       const filas = leerFilas(hoja, COLS.length);
       const ids = new Set(filas.map(f => String(f[9])));
       (datos.add || []).forEach(r => {
         if (!r.id || ids.has(r.id)) return;
+        // Lo anotado en un teléfono antes del último reinicio ya no entra.
+        if (creadoEn(r.id) < desdeGas) { rechazados.push(r.id); return; }
         // Solo el dueño corrige el nivel del tanque.
         if (r.tipo === 'Corrección' && !dueno) { rechazados.push(r.id); return; }
         ids.add(r.id);
@@ -51,6 +63,7 @@ function doPost(e) {
       const idsServ = new Set(serv.map(f => String(f[8])));
       (datos.addServ || []).forEach(r => {
         if (!r.id || idsServ.has(r.id)) return;
+        if (creadoEn(r.id) < desdeServ) { rechazados.push(r.id); return; }
         idsServ.add(r.id);
         serv.push([fechaDe(r.fecha), r.maquina || '', Number(r.horas) || 0, (r.trabajo || []).join(', '), r.comentario || '', yo.nombre, '', new Date(), r.id]);
       });
@@ -68,6 +81,24 @@ function doPost(e) {
     salida.rechazados = rechazados;
     return salida;
   });
+}
+
+// Guarda una copia de la pestaña (Movimientos o Servicios) y la deja solo con los encabezados.
+// No toca las máquinas, el plan de servicios, los usuarios ni la clave.
+function reiniciar(libro, que) {
+  const h = hojas(libro);
+  const hoja = que === 'gasoil' ? h.mov : h.serv;
+  if (hoja.getLastRow() > 1) {
+    const nombre = 'Respaldo ' + (que === 'gasoil' ? 'gasoil' : 'servicios') + ' ' + Utilities.formatDate(new Date(), ZONA, 'dd-MM-yyyy HH.mm');
+    hoja.copyTo(libro).setName(nombre).setTabColor('#999999');
+    hoja.getRange(2, 1, hoja.getLastRow() - 1, hoja.getMaxColumns()).clearContent();
+  }
+  PropertiesService.getScriptProperties().setProperty('reinicio_' + que, String(Date.now()));
+}
+
+// Momento en que el teléfono creó el registro (va al principio del ID).
+function creadoEn(id) {
+  return parseInt(String(id).split('-')[0], 36) || 0;
 }
 
 function leer(clave) {

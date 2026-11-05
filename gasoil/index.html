@@ -227,6 +227,19 @@ textarea{min-height:70px;resize:vertical}
   </form>
 </dialog>
 
+<dialog id="dlgReiniciar">
+  <form method="dialog" id="fReiniciar">
+    <h3 id="reiniciarTit"></h3>
+    <p class="nota" id="reiniciarTxt" style="font-size:16px"></p>
+    <p class="nota">Antes de borrar, el servidor guarda una copia en una pestaña nueva de la hoja que empieza con «Respaldo».</p>
+    <div class="aviso" id="avisoReiniciar"></div>
+    <div class="fila">
+      <button class="btn" type="button" id="noReiniciar">No</button>
+      <button class="btn prin" type="submit" id="siReiniciar" style="grid-column:auto;background:#A2482B">Sí, reiniciar</button>
+    </div>
+  </form>
+</dialog>
+
 <dialog id="dlgAjustes">
   <form method="dialog" id="fAjustes">
     <h3>Ajustes de este teléfono</h3>
@@ -236,6 +249,14 @@ textarea{min-height:70px;resize:vertical}
     <label for="aServidor">Servidor</label>
     <input id="aServidor" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec" style="font-size:13px">
     <div class="aviso" id="avisoAjustes"></div>
+    <div id="bloqueReiniciar" hidden>
+      <label>Empezar de cero (solo el dueño)</label>
+      <p class="nota">Cada botón borra solo lo suyo. Las máquinas, el plan de servicios, los usuarios y la clave no se tocan.</p>
+      <div class="fila">
+        <button class="btn" type="button" data-reiniciar="gasoil">Reiniciar gasoil</button>
+        <button class="btn" type="button" data-reiniciar="servicios">Reiniciar servicios</button>
+      </div>
+    </div>
     <div class="fila">
       <button class="btn" type="button" id="cerrarAjustes">Cerrar</button>
       <button class="btn prin" type="submit" value="ok" style="grid-column:auto">Guardar</button>
@@ -281,6 +302,7 @@ let errorSync = '';
 let periodo = 'hoy';
 let mostrar = 40;
 const conServicios = () => verServidor >= 2;
+const conReinicio = () => verServidor >= 3;
 
 const servidor = () => (conf.servidor || SERVIDOR).trim();
 
@@ -497,17 +519,21 @@ function pintarEstado() {
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
 // Envía lo pendiente y trae todo lo de la hoja.
+// Con reiniciar ('gasoil' o 'servicios') además le pide al servidor dejar esa parte en cero;
+// lo de esa parte que estaba por enviar en este teléfono se descarta. Devuelve '' si salió bien.
 let enviando = false;
-async function sincronizar() {
-  if (enviando || !servidor() || !conf.clave) { pintarEstado(); return; }
+async function sincronizar(reiniciar) {
+  if (enviando || !servidor() || !conf.clave) { pintarEstado(); return 'ocupado'; }
   enviando = true;
-  const add = pend.slice(), quitar = anul.slice();
-  const addServ = conServicios() ? pendServ.slice() : [], anularServ = conServicios() ? anulServ.slice() : [];
+  const gas = reiniciar !== 'gasoil', sv = conServicios() && reiniciar !== 'servicios';
+  const add = gas ? pend.slice() : [], quitar = gas ? anul.slice() : [];
+  const addServ = sv ? pendServ.slice() : [], anularServ = sv ? anulServ.slice() : [];
+  let fallo = '';
   try {
     const resp = await fetch(servidor(), {
       method: 'POST', redirect: 'follow',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ k: conf.clave, add, anular: quitar, addServ, anularServ })
+      body: JSON.stringify({ k: conf.clave, add, anular: quitar, addServ, anularServ, reiniciar: reiniciar || undefined })
     });
     const datos = await resp.json();
     if (!datos.ok) throw new Error(datos.error || 'error');
@@ -516,24 +542,29 @@ async function sincronizar() {
     const rech = new Set(datos.rechazados || []);
     const ids = new Set(filas.map(r => r.id));
     const anulados = new Set(filas.filter(r => r.anulado).map(r => r.id));
+    if (reiniciar === 'gasoil') { pend = []; anul = []; }
+    if (reiniciar === 'servicios') { pendServ = []; anulServ = []; }
     pend = pend.filter(r => !ids.has(r.id) && !rech.has(r.id));
-    anul = anul.filter(id => !anulados.has(id) && !rech.has(id));
+    // Solo se anula lo que está en la hoja: si ya no está (por un reinicio), se olvida.
+    anul = anul.filter(id => ids.has(id) && !anulados.has(id) && !rech.has(id));
     verServidor = datos.version || 0; guardar('verServidor', verServidor);
     if (conServicios()) {
       serv = datos.servicios || []; plan = datos.plan || [];
       const idsS = new Set(serv.map(r => r.id));
       const anuladosS = new Set(serv.filter(r => r.anulado).map(r => r.id));
       pendServ = pendServ.filter(r => !idsS.has(r.id) && !rech.has(r.id));
-      anulServ = anulServ.filter(id => !anuladosS.has(id) && !rech.has(id));
+      anulServ = anulServ.filter(id => idsS.has(id) && !anuladosS.has(id) && !rech.has(id));
       guardar('serv', serv); guardar('plan', plan); guardar('pendServ', pendServ); guardar('anulServ', anulServ);
     }
     ultimaSync = Date.now(); errorSync = '';
     guardar('filas', filas); guardar('pend', pend); guardar('anul', anul); guardar('ultimaSync', ultimaSync);
   } catch (err) {
     errorSync = /clave/.test(err.message) ? 'clave' : 'red';
+    fallo = err.message || 'red';
   }
   enviando = false;
   pintar();
+  return fallo;
 }
 
 // Formulario de movimiento
@@ -711,8 +742,43 @@ function abrirAjustes() {
   $('aClave').value = conf.clave; $('aServidor').value = servidor();
   $('aQuien').textContent = yo ? 'Este teléfono anota como: ' + yo.nombre : 'Escriba la clave que le dio Guillermo.';
   $('avisoAjustes').textContent = '';
+  $('bloqueReiniciar').hidden = !(esDueno() && conReinicio());
   $('dlgAjustes').showModal();
 }
+
+// Reiniciar gasoil o servicios desde cero (solo el dueño, cada uno por separado)
+let queReiniciar = '';
+$('bloqueReiniciar').addEventListener('click', e => {
+  const b = e.target.closest('[data-reiniciar]'); if (!b) return;
+  queReiniciar = b.dataset.reiniciar;
+  const gas = queReiniciar === 'gasoil';
+  $('reiniciarTit').textContent = gas ? '¿Reiniciar el gasoil desde cero?' : '¿Reiniciar los servicios desde cero?';
+  $('reiniciarTxt').textContent = gas
+    ? 'Se borran todas las entradas, salidas y correcciones del tanque, y el tanque queda en 0 litros. Los servicios no se tocan.'
+    : 'Se borran todos los servicios, cambios de filtro y lecturas de horas o kilometraje. El gasoil no se toca.';
+  $('avisoReiniciar').textContent = '';
+  $('siReiniciar').disabled = false;
+  $('dlgAjustes').close();
+  $('dlgReiniciar').showModal();
+});
+$('noReiniciar').addEventListener('click', () => $('dlgReiniciar').close());
+$('fReiniciar').addEventListener('submit', async e => {
+  e.preventDefault();
+  $('siReiniciar').disabled = true;
+  $('avisoReiniciar').textContent = 'Reiniciando…';
+  for (let i = 0; enviando && i < 60; i++) await new Promise(r => setTimeout(r, 500));
+  const fallo = await sincronizar(queReiniciar);
+  if (fallo) {
+    $('siReiniciar').disabled = false;
+    $('avisoReiniciar').textContent = fallo === 'red' || /fetch|network|load/i.test(fallo) ? 'No hay señal. Intente de nuevo con internet.' : 'No se pudo: ' + fallo;
+    return;
+  }
+  $('dlgReiniciar').close();
+  vista = queReiniciar; guardar('vista', vista);
+  pintar();
+  // El tanque quedó en 0: lo primero es anotar los litros que hay de verdad.
+  if (queReiniciar === 'gasoil') abrirMov('Corrección');
+});
 $('ajustes').addEventListener('click', abrirAjustes);
 $('estado').addEventListener('click', () => (!servidor() || !conf.clave || errorSync === 'clave') ? abrirAjustes() : sincronizar());
 $('cerrarAjustes').addEventListener('click', () => $('dlgAjustes').close());
