@@ -43,8 +43,8 @@ function doPost(e) {
         if (!r.id || ids.has(r.id)) return;
         // Lo anotado en un teléfono antes del último reinicio ya no entra.
         if (creadoEn(r.id) < desdeGas) { rechazados.push(r.id); return; }
-        // Solo el dueño corrige el nivel del tanque.
-        if (r.tipo === 'Corrección' && !dueno) { rechazados.push(r.id); return; }
+        // Solo el dueño surte gasoil: tanquear, entradas y correcciones del tanque.
+        if (!dueno) { rechazados.push(r.id); return; }
         ids.add(r.id);
         filas.push([fechaDe(r.fecha), r.tipo, r.maquina || '', Number(r.litros) || 0, r.comentario || '', yo.nombre, '', '', new Date(), r.id, Number(r.horas) > 0 ? Number(r.horas) : '']);
       });
