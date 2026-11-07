@@ -268,7 +268,11 @@ textarea{min-height:70px;resize:vertical}
 <script>
 // Dirección del servidor (Apps Script de la hoja "Gasoil Paso Nuevo"). Se puede cambiar en Ajustes.
 const SERVIDOR = 'https://script.google.com/macros/s/AKfycby8ksLHxrHT8X9ML-a78g_k9pMyXyBG8ix9ppKo14vOiJhQ0zXlPLyipHwqmDMnmrlxaA/exec';
-const MAQUINAS = ['Landini', 'John Deere', 'Fiat', 'Ford'];       // se tanquean del tanque; cuentan horas
+const MAQUINAS = ['Landini', 'John Deere', 'Fiat', 'Ford', 'Máquina lechera']; // se tanquean del tanque; cuentan horas
+// Máquinas sin intervalo fijo: el aceite y los filtros se cambian cuando se crea pertinente y las horas son opcionales.
+const SIN_INTERVALO = ['Máquina lechera'];
+const TRABAJOS_LIBRES = ['Aceite de motor', 'Filtro de aceite', 'Filtro de gasoil', 'Filtro de aire', 'Aceite hidráulico', 'Filtro hidráulico'];
+const sinIntervalo = m => SIN_INTERVALO.includes(m);
 const VEHICULOS = ['Ford F-150', 'Jeep Grand Cherokee', 'Silverado']; // solo servicios; cuentan kilómetros
 const EQUIPOS = MAQUINAS.concat(VEHICULOS);
 // Intervalos provisionales de los vehículos (km) mientras no tengan filas en la pestaña "Plan de servicios".
@@ -276,6 +280,7 @@ const PLAN_VEHICULO = [['Aceite de motor', 5000], ['Filtro de aceite', 5000], ['
 const esVehiculo = m => VEHICULOS.includes(m);
 const un = m => esVehiculo(m) ? 'km' : 'h';
 function planDe(m) {
+  if (sinIntervalo(m)) return [];
   const filas = plan.filter(p => p.maquina === m);
   if (filas.length || !esVehiculo(m)) return filas;
   return PLAN_VEHICULO.map(([servicio, cada]) => ({ maquina: m, servicio, cada }));
@@ -373,7 +378,12 @@ function estadoMaq(m, movs, servs) {
     const estado = faltan <= 0 ? 'vencido' : faltan <= Math.max(25, p.cada * 0.1) ? 'pronto' : 'ok';
     return { ...p, estado, hecho, toca, faltan };
   });
-  return { m, actual, ult, porDia, items };
+  // Sin intervalo fijo: último trabajo hecho de cada tipo, con su fecha.
+  const ultimos = !sinIntervalo(m) ? [] : TRABAJOS_LIBRES.concat(OTRO).map(t => ({
+    servicio: t,
+    hecho: servs.filter(r => !r.anulado && r.maquina === m && r.trabajo.includes(t)).reduce((a, r) => !a || r.fecha > a.fecha ? r : a, null)
+  })).filter(x => x.hecho);
+  return { m, actual, ult, porDia, items, ultimos };
 }
 
 function estados() {
@@ -475,7 +485,7 @@ function pintarServicios() {
       ? `<span class="horo">${fmtH(e.actual)} <small>${u}</small></span>`
       : `<span class="horo"><small>${u === 'km' ? 'sin km' : 'sin horas'}</small></span>`;
     let sub = e.ult ? 'Última lectura ' + fechaCorta(e.ult.fecha) + (e.porDia ? ' · ≈ ' + fmt(e.porDia) + ' ' + u + ' por día' : '')
-      : u === 'km' ? 'Anote el kilometraje o registre el último servicio.' : 'Anote el horómetro al tanquear o registre el último servicio.';
+      : u === 'km' ? 'Anote el kilometraje o registre el último servicio.' : sinIntervalo(e.m) ? 'Horas opcionales.' : 'Anote el horómetro al tanquear o registre el último servicio.';
     const orden = { vencido: 0, pronto: 1, ok: 2, nd: 3 };
     const filas = e.items.slice().sort((a, b) => orden[a.estado] - orden[b.estado] || (a.faltan || 0) - (b.faltan || 0)).map(i => {
       let txt, det;
@@ -488,8 +498,14 @@ function pintarServicios() {
         det = 'Cada ' + fmtH(i.cada) + ' ' + u + ' · toca en ' + fmtH(i.toca) + ' ' + u + ' · último ' + fechaCorta(i.hecho.fecha) + ' con ' + fmtH(i.hecho.horas) + ' ' + u;
       }
       return `<div class="srv ${i.estado}"><span class="punto"></span><span>${esc(i.servicio)}<small>${esc(det)}</small></span><b>${txt}</b></div>`;
+    }).join('') + (e.ultimos || []).map(x => {
+      const d = Math.floor((new Date(ahoraLocal().slice(0, 10)) - new Date(x.hecho.fecha.slice(0, 10))) / 864e5);
+      const det = 'Último ' + fechaCorta(x.hecho.fecha) + (x.hecho.horas > 0 ? ' con ' + fmtH(x.hecho.horas) + ' h' : '') + (x.servicio === OTRO && x.hecho.comentario ? ' · ' + x.hecho.comentario : '');
+      return `<div class="srv ok"><span class="punto"></span><span>${esc(x.servicio === OTRO ? 'Otro' : x.servicio)}<small>${esc(det)}</small></span><b>${d <= 0 ? 'Hoy' : 'Hace ' + d + (d === 1 ? ' día' : ' días')}</b></div>`;
     }).join('');
-    return grupo + `<section class="tarjeta"><h2>${esc(e.m)} ${cab}</h2><p class="nota" style="margin:-6px 0 8px">${esc(sub)}</p>${filas || '<p class="nota">Esta máquina no tiene servicios en la pestaña «Plan de servicios» de la hoja.</p>'}</section>`;
+    const vacio = sinIntervalo(e.m) ? '<p class="nota">Sin intervalo fijo: el aceite y los filtros se cambian cuando se crea pertinente. Registre cada cambio y aquí verá cuándo fue el último.</p>'
+      : '<p class="nota">Esta máquina no tiene servicios en la pestaña «Plan de servicios» de la hoja.</p>';
+    return grupo + `<section class="tarjeta"><h2>${esc(e.m)} ${cab}</h2><p class="nota" style="margin:-6px 0 8px">${esc(sub)}</p>${filas || vacio}</section>`;
   }).join('');
 
   const rec = servicios().slice().reverse();
@@ -499,7 +515,7 @@ function pintarServicios() {
     return `<button type="button" class="mov${r.anulado ? ' anulado' : ''}" data-id="${esc(r.id)}">
       <span class="hora">${fechaCorta(r.fecha)}</span>
       <span class="que"><div>${esc(r.maquina)}${r.pendiente ? '<span class="chip pend">por enviar</span>' : ''}${r.anulado ? '<span class="chip">anulado</span>' : ''}</div><p>${esc(r.trabajo.length ? r.trabajo.join(', ') : 'Lectura')}${detalle ? ' · ' + esc(detalle) : ''}</p></span>
-      <span class="lts">${fmtH(r.horas)} ${un(r.maquina)}</span></button>`;
+      <span class="lts">${r.horas > 0 ? fmtH(r.horas) + ' ' + un(r.maquina) : '—'}</span></button>`;
   }).join('');
 }
 
@@ -682,7 +698,7 @@ function abrirServ(lectura) {
   $('dlgServ').showModal();
 }
 function pintarTrabajos() {
-  const lista = planDe(servMaq).map(p => p.servicio).concat(OTRO);
+  const lista = (sinIntervalo(servMaq) ? TRABAJOS_LIBRES : planDe(servMaq).map(p => p.servicio)).concat(OTRO);
   $('trabajos').innerHTML = lista.map(t => `<button type="button" data-t="${esc(t)}" class="${servTrab.includes(t) ? 'on' : ''}">${esc(t === OTRO ? 'Otro (explique abajo)' : t)}</button>`).join('');
 }
 $('servMaquinas').addEventListener('click', e => {
@@ -691,7 +707,7 @@ $('servMaquinas').addEventListener('click', e => {
   [...$('servMaquinas').children].forEach(x => x.classList.toggle('on', x === b));
   const u = ultimaLectura(servMaq);
   const km = esVehiculo(servMaq);
-  $('lblServHoras').textContent = km ? (soloLectura ? 'Kilometraje de hoy (km)' : 'Kilometraje cuando se hizo el servicio (km)') : (soloLectura ? 'Horómetro de hoy (horas)' : 'Horómetro cuando se hizo el servicio (horas)');
+  $('lblServHoras').textContent = km ? (soloLectura ? 'Kilometraje de hoy (km)' : 'Kilometraje cuando se hizo el servicio (km)') : (soloLectura ? 'Horómetro de hoy (horas)' : 'Horómetro cuando se hizo el servicio (horas)' + (sinIntervalo(servMaq) ? ' · opcional' : ''));
   $('notaServHoras').textContent = u ? 'Última lectura: ' + fmtH(u.horas) + ' ' + un(servMaq) + ' el ' + fechaCorta(u.fecha) : km ? 'Todavía no hay kilometraje anotado de este vehículo.' : 'Todavía no hay horas anotadas de esta máquina.';
   $('avisoServ').textContent = '';
   pintarTrabajos();
@@ -707,13 +723,14 @@ $('fServ').addEventListener('submit', e => {
   const h = Number($('servHoras').value.replace(',', '.'));
   const aviso = t => { e.preventDefault(); $('avisoServ').textContent = t; };
   if (!servMaq) return aviso('Toque la máquina o el vehículo.');
-  if (!(h > 0)) return aviso(esVehiculo(servMaq) ? 'Escriba el kilometraje.' : 'Escriba las horas del horómetro.');
+  if ($('servHoras').value.trim() && !(h > 0)) return aviso('Escriba solo el número, o déjelo vacío.');
+  if (!(h > 0) && !(sinIntervalo(servMaq) && !soloLectura)) return aviso(esVehiculo(servMaq) ? 'Escriba el kilometraje.' : 'Escriba las horas del horómetro.');
   const ult = ultimaLectura(servMaq);
   if (soloLectura && ult && h < ult.horas) return aviso('Es menos que la última lectura (' + fmtH(ult.horas) + ' ' + un(servMaq) + '). Revise el número.');
   if (!soloLectura && !servTrab.length) return aviso('Marque lo que se cambió.');
   if (servTrab.includes(OTRO) && !$('servComent').value.trim()) return aviso('Explique en el comentario qué fue «Otro».');
   pendServ.push({
-    id: nuevoId(), fecha: $('servFecha').value || ahoraLocal(), maquina: servMaq, horas: h,
+    id: nuevoId(), fecha: $('servFecha').value || ahoraLocal(), maquina: servMaq, horas: h > 0 ? h : 0,
     trabajo: soloLectura ? [] : servTrab.slice(), comentario: $('servComent').value.trim(), quien: yo ? yo.nombre : ''
   });
   guardar('pendServ', pendServ);
@@ -729,7 +746,7 @@ $('listaServ').addEventListener('click', e => {
   idAnular = r.id; anularServicio = true;
   $('anularTit').textContent = r.trabajo.length ? '¿Anular este servicio?' : '¿Anular esta lectura?';
   $('anularNota').textContent = 'Queda tachado en la lista y en la hoja, y deja de contar para los próximos servicios.';
-  $('anularTxt').textContent = r.maquina + ' · ' + (r.trabajo.join(', ') || 'Lectura') + ' · ' + fmtH(r.horas) + ' ' + un(r.maquina) + ' · ' + fechaCorta(r.fecha);
+  $('anularTxt').textContent = r.maquina + ' · ' + (r.trabajo.join(', ') || 'Lectura') + (r.horas > 0 ? ' · ' + fmtH(r.horas) + ' ' + un(r.maquina) : '') + ' · ' + fechaCorta(r.fecha);
   $('dlgAnular').showModal();
 });
 
