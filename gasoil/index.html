@@ -40,7 +40,7 @@ main{max-width:640px;margin:0 auto;padding:16px 16px calc(env(safe-area-inset-bo
 .saldo .sub{font-size:14px;color:var(--muted)}
 .acciones{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
 .btn{border:0;border-radius:12px;padding:16px 12px;font-size:17px;font-weight:600;background:var(--tint);color:var(--fg)}
-#accionesGasoil[hidden]{display:none}
+#btnEntrada[hidden]{display:none}
 .acciones:has(#btnCorregir[hidden]) .btn[data-tipo="Entrada"]{grid-column:1/-1}
 .btn.prin{grid-column:1/-1;background:var(--verde);color:#F4EEE0;font-size:19px;padding:20px}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .btn.prin{background:#2B5679}}
@@ -142,10 +142,9 @@ textarea{min-height:70px;resize:vertical}
     <div class="sub" id="saldoSub"></div>
   </section>
 
-  <p class="nota" id="soloDueno" hidden style="margin:0 0 14px">Solo el dueño anota el gasoil (tanquear, entradas y correcciones). Aquí puede ver el tanque y el consumo.</p>
-  <div class="acciones" id="accionesGasoil">
+  <div class="acciones">
     <button class="btn prin" type="button" data-tipo="Salida">⛽ Tanquear máquina</button>
-    <button class="btn" type="button" data-tipo="Entrada">＋ Entrada</button>
+    <button class="btn" type="button" data-tipo="Entrada" id="btnEntrada">＋ Entrada</button>
     <button class="btn" type="button" data-tipo="Corrección" id="btnCorregir" hidden>Corregir nivel</button>
   </div>
 
@@ -411,10 +410,8 @@ function pintar() {
   pintarEstado();
   pintarServicios();
   $('btnCorregir').hidden = !esDueno();
-  // Solo el dueño surte gasoil. Mientras no se sepa quién es (primera vez), se muestran los botones.
-  const soloVer = !!yo && !esDueno();
-  $('accionesGasoil').hidden = soloVer;
-  $('soloDueno').hidden = !soloVer;
+  // Todos tanquean las máquinas; solo el dueño le da entrada de gasoil al tanque.
+  $('btnEntrada').hidden = !esDueno();
   $('saldo').innerHTML = fmt(saldo) + ' <span>L</span>';
   $('saldo').classList.toggle('bajo', saldo < NIVEL_BAJO);
   $('saldoSub').textContent = ultEntrada ? 'Última entrada: ' + fmt(ultEntrada.litros) + ' L el ' + fechaCorta(ultEntrada.fecha) : 'Aún no hay entradas anotadas';
@@ -577,7 +574,7 @@ async function sincronizar(reiniciar) {
 let tipoActual = 'Salida', maqActual = '';
 function abrirMov(tipo) {
   if (!conf.clave) { abrirAjustes(); return; }
-  if (yo && !esDueno()) return;
+  if (tipo !== 'Salida' && !esDueno()) return;
   tipoActual = tipo; maqActual = '';
   $('movTitulo').textContent = tipo === 'Salida' ? 'Tanquear máquina' : tipo === 'Entrada' ? 'Entrada de gasoil al tanque' : 'Corregir nivel del tanque';
   $('bloqueMaq').style.display = tipo === 'Salida' ? '' : 'none';
